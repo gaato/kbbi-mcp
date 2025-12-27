@@ -3,7 +3,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/gaato/kbbi-mcp/ci.yml?label=CI)](https://github.com/gaato/kbbi-mcp/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/kbbi-mcp)](https://pypi.org/project/kbbi-mcp/)
 [![Python](https://img.shields.io/pypi/pyversions/kbbi-mcp)](https://pypi.org/project/kbbi-mcp/)
-[![License](https://img.shields.io/pypi/l/kbbi-mcp)](https://github.com/gaato/kbbi-mcp/blob/main/LICENSE)
+[![License](https://img.shields.io/pypi/l/kbbi-mcp)](https://github.com/gaato/kbbi-mcp/blob/master/LICENSE)
 
 An MCP server for querying KBBI (Kamus Besar Bahasa Indonesia / KBBI Daring).
 
