@@ -1,0 +1,154 @@
+# kbbi-mcp
+
+[![CI](https://img.shields.io/github/actions/workflow/status/gaato/kbbi-mcp/ci.yml?label=CI)](https://github.com/gaato/kbbi-mcp/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/kbbi-mcp)](https://pypi.org/project/kbbi-mcp/)
+[![Python](https://img.shields.io/pypi/pyversions/kbbi-mcp)](https://pypi.org/project/kbbi-mcp/)
+[![License](https://img.shields.io/pypi/l/kbbi-mcp)](https://github.com/gaato/kbbi-mcp/blob/main/LICENSE)
+
+An MCP server for querying KBBI (Kamus Besar Bahasa Indonesia / KBBI Daring).
+
+This project exposes a single, stable JSON tool output so LLM clients can decide how to format, translate, or summarize results.
+
+## Relationship to KBBI Daring
+
+This project is **unofficial** and is **not affiliated with** or endorsed by the official KBBI Daring service.
+
+## Features
+
+- MCP tool: `kbbi_lookup(query: str)`
+- MCP resource: `kbbi://{query}` (same payload as `kbbi_lookup`)
+- Works without credentials (anonymous mode)
+- Optional authenticated mode via environment variables
+
+## Configure in an MCP client (JSON)
+
+Most MCP clients (including Claude Desktop) use a JSON config with a top-level `mcpServers` object.
+
+### Claude Desktop (recommended: `uvx`)
+
+This matches the convention used by many Python MCP servers.
+
+```json
+{
+	"mcpServers": {
+		"kbbi": {
+			"command": "uvx",
+			"args": ["kbbi-mcp"]
+		}
+	}
+}
+```
+
+### Claude Desktop (optional: authenticated mode)
+
+If you have KBBI Daring credentials, you can pass them via `env`. If you don't, you can omit `env` entirely.
+
+```json
+{
+	"mcpServers": {
+		"kbbi": {
+			"command": "uvx",
+			"args": ["kbbi-mcp"],
+			"env": {
+				"KBBI_EMAIL": "<YOUR_EMAIL>",
+				"KBBI_PASSWORD": "<YOUR_PASSWORD>",
+				"KBBI_COOKIE_PATH": "<OPTIONAL_PATH>"
+			}
+		}
+	}
+}
+```
+
+### Local development (run from this repo)
+
+If you want to test a local checkout (no install step), run `uv` in the repository directory:
+
+```json
+{
+	"mcpServers": {
+		"kbbi-local": {
+			"command": "uv",
+			"args": ["--directory", "/ABS/PATH/TO/kbbi-mcp", "run", "kbbi-mcp"]
+		}
+	}
+}
+```
+
+## Tool: `kbbi_lookup`
+
+**Input**
+
+- `query` (string): a word or phrase
+
+Example tool arguments:
+
+```json
+{
+	"query": "makan"
+}
+```
+
+**Output**
+
+Returns a JSON object:
+
+- `found` (bool)
+- `query` (string)
+- `url` (string | null)
+- `entries` (list)
+- `suggestions` (list)
+- `error` (string, optional): present only when the request is invalid (e.g. empty query) or an unexpected error occurs
+
+`entries` is based on KBBI's `serialisasi()` shape from the underlying `kbbi` library, with a small normalization:
+
+- `etimologi` is always present (as an object or `null`)
+- related-word lists are always present (as arrays, possibly empty)
+
+This keeps the tool output stable across anonymous/authenticated mode.
+
+Example tool output:
+
+```json
+{
+	"found": true,
+	"query": "makan",
+	"url": "https://kbbi.kemdikbud.go.id/entri/makan",
+	"entries": [
+		{
+			"nama": "makan",
+			"nomor": "",
+			"kata_dasar": [],
+			"pelafalan": "",
+			"bentuk_tidak_baku": [],
+			"varian": [],
+			"makna": [],
+			"etimologi": null,
+			"kata_turunan": [],
+			"gabungan_kata": [],
+			"peribahasa": [],
+			"idiom": []
+		}
+	],
+	"suggestions": []
+}
+```
+
+## Resource: `kbbi://{query}`
+
+This server also exposes the same payload as a read-only MCP resource.
+
+- `kbbi://makan`
+
+For low-level debugging, a client would read it using `resources/read` with `{"uri": "kbbi://makan"}`.
+
+## Authentication (optional)
+
+Anonymous mode works out of the box.
+
+If you have KBBI Daring credentials, some additional fields may become available.
+
+Set the following environment variables:
+
+- `KBBI_EMAIL`
+- `KBBI_PASSWORD`
+- `KBBI_COOKIE_PATH` (optional)
