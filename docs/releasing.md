@@ -6,6 +6,8 @@ This document is intentionally not linked from `README.md`.
 
 This repo is set up to publish to PyPI via GitHub Actions on tag push (`v*`) using PyPI Trusted Publishing (OIDC).
 
+On the same tag push, the workflow also creates a GitHub Release with automatically generated release notes and attaches `dist/*` artifacts.
+
 Workflow: `.github/workflows/publish.yml`
 
 ## Release steps
