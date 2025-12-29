@@ -56,6 +56,9 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Create venv
+        run: uv venv
+
       # NOTE: The project metadata currently declares requires-python>=3.14, so we can't
       # install the package itself on older interpreters without changing pyproject.toml.
       # We still run the unit tests by importing from ./src via PYTHONPATH.
@@ -70,4 +73,4 @@ jobs:
       - name: Tests
         env:
           PYTHONPATH: src
-        run: pytest
+        run: uv run pytest
