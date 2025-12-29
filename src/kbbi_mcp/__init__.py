@@ -67,4 +67,4 @@ def __getattr__(name: str) -> Any:
         from .server import mcp
 
         return mcp
-    raise AttributeError(name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
