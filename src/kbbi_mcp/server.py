@@ -200,31 +200,31 @@ async def kbbi_lookup(query: str, ctx: Context) -> KBBILookupResult:
     Returns:
         KBBILookupResult: A stable, JSON-serializable object containing lookup results.
     """
-    normalized_query = query.strip()
     await ctx.info(
         "kbbi_lookup called",
-        extra={"query": query, "normalized_query": normalized_query},
+        extra={"query": query},
     )
 
-    result = _kbbi_lookup_result(normalized_query)
+    result = _kbbi_lookup_result(query)
+    result_query = result.get("query", query)
 
     if "error" in result:
         await ctx.warning(
             "kbbi_lookup returned an error",
-            extra={"query": normalized_query, "error": result.get("error")},
+            extra={"query": result_query, "error": result.get("error")},
         )
         return result
 
     if result["found"]:
         await ctx.info(
             "kbbi_lookup found entries",
-            extra={"query": normalized_query, "entries": len(result["entries"])},
+            extra={"query": result_query, "entries": len(result["entries"])},
         )
         return result
 
     await ctx.info(
         "kbbi_lookup found no entries",
-        extra={"query": normalized_query, "suggestions": len(result["suggestions"])},
+        extra={"query": result_query, "suggestions": len(result["suggestions"])},
     )
     return result
 
