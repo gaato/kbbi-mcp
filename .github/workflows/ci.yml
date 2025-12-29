@@ -36,3 +36,38 @@ jobs:
 
       - name: Build (sdist/wheel)
         run: uv build
+
+  test-matrix:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      # NOTE: The project metadata currently declares requires-python>=3.14, so we can't
+      # install the package itself on older interpreters without changing pyproject.toml.
+      # We still run the unit tests by importing from ./src via PYTHONPATH.
+      - name: Install test/runtime deps
+        run: |
+          uv pip install \
+            "pytest>=8,<9" \
+            "fastmcp>=2.14.1,<3" \
+            "kbbi>=0.4.3" \
+            "pydantic-settings>=2,<3"
+
+      - name: Tests
+        env:
+          PYTHONPATH: src
+        run: pytest
