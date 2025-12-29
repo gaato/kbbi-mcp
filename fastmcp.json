@@ -1,0 +1,20 @@
+{
+    "$schema": "https://gofastmcp.com/public/schemas/fastmcp.json/v1.json",
+    "source": {
+        "type": "filesystem",
+        "path": "src/kbbi_mcp/server.py",
+        "entrypoint": "mcp"
+    },
+    "environment": {
+        "type": "uv",
+        "python": ">=3.13",
+        "project": ".",
+        "editable": [
+            "."
+        ]
+    },
+    "deployment": {
+        "transport": "stdio",
+        "log_level": "INFO"
+    }
+}

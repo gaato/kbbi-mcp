@@ -1,0 +1,40 @@
+name: Network smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      python-version:
+        description: Python version to run the network smoke test with
+        required: true
+        default: "3.13"
+        type: choice
+        options:
+          - "3.13"
+          - "3.14"
+
+jobs:
+  network:
+    name: Network tests (Python ${{ inputs.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ inputs.python-version }}
+          allow-prereleases: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync deps (dev)
+        run: uv sync --frozen --group dev
+
+      - name: Run opt-in network tests
+        env:
+          KBBI_MCP_RUN_NETWORK_TESTS: "1"
+        run: uv run pytest -m network

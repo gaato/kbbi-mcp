@@ -1,0 +1,63 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "uv: sync (dev, frozen)",
+            "type": "shell",
+            "command": "uv",
+            "args": [
+                "sync",
+                "--frozen",
+                "--group",
+                "dev"
+            ],
+            "group": "build"
+        },
+        {
+            "label": "ruff: lint (check)",
+            "type": "shell",
+            "command": "uv",
+            "args": [
+                "run",
+                "ruff",
+                "check",
+                "."
+            ],
+            "group": "test"
+        },
+        {
+            "label": "ruff: format (check)",
+            "type": "shell",
+            "command": "uv",
+            "args": [
+                "run",
+                "ruff",
+                "format",
+                "--check",
+                "."
+            ],
+            "group": "test"
+        },
+        {
+            "label": "ty: type check",
+            "type": "shell",
+            "command": "uv",
+            "args": [
+                "run",
+                "ty",
+                "check"
+            ],
+            "group": "test"
+        },
+        {
+            "label": "pytest",
+            "type": "shell",
+            "command": "uv",
+            "args": [
+                "run",
+                "pytest"
+            ],
+            "group": "test"
+        }
+    ]
+}

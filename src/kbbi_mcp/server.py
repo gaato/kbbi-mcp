@@ -2,15 +2,70 @@ import warnings
 from collections.abc import Iterator
 from contextlib import contextmanager
 from functools import lru_cache
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as package_version
 from typing import Any, cast
 
-from fastmcp import FastMCP
+from fastmcp import Client, Context, FastMCP
 from kbbi import KBBI, AutentikasiKBBI, TidakDitemukan
 
 from .settings import get_settings
 from .types import KBBILookupResult, _KBBIEntri, _KBBIEntriMaybeUser, _KBBISerialisasi
 
-mcp = FastMCP(name="KBBI MCP")
+
+def _get_package_version() -> str | None:
+    """Return the installed package version, if available.
+
+    Returns:
+        str | None: The version string, or None when running from source without metadata.
+    """
+    try:
+        return package_version("kbbi-mcp")
+    except PackageNotFoundError:
+        return None
+
+
+_INSTRUCTIONS = """\
+Query KBBI (Kamus Besar Bahasa Indonesia / KBBI Daring).
+
+- Tool: kbbi_lookup(query: str) -> JSON
+- Resource: kbbi://{query} (same payload)
+
+Anonymous mode works out of the box.
+Optional authenticated mode via env: KBBI_EMAIL, KBBI_PASSWORD (and optional KBBI_COOKIE_PATH).
+"""
+
+
+mcp = FastMCP(
+    name="KBBI MCP",
+    instructions=_INSTRUCTIONS,
+    version=_get_package_version(),
+    website_url="https://github.com/gaato/kbbi-mcp",
+)
+
+
+def create_mcp() -> FastMCP:
+    """Return the FastMCP server instance.
+
+    This makes it easy to embed the server in-process (e.g. for testing or to
+    pass it directly to libraries like Pydantic AI's `FastMCPToolset`).
+
+    Returns:
+        FastMCP: The configured server instance.
+    """
+    return mcp
+
+
+def create_client() -> Client[Any]:
+    """Create an in-memory FastMCP client connected to this server.
+
+    This avoids spawning a subprocess or using a network transport, which is
+    ideal for deterministic unit tests and Python integrations.
+
+    Returns:
+        Client[Any]: A FastMCP client using in-memory transport.
+    """
+    return Client(create_mcp())
 
 
 @contextmanager
@@ -135,16 +190,43 @@ def _kbbi_lookup_result(query: str) -> KBBILookupResult:
 
 
 @mcp.tool
-def kbbi_lookup(query: str) -> KBBILookupResult:
+async def kbbi_lookup(query: str, ctx: Context) -> KBBILookupResult:
     """Look up a word or phrase in KBBI and return structured JSON.
 
     Args:
         query (str): A word or phrase to look up.
+        ctx (Context): FastMCP context for logging and request-scoped metadata.
 
     Returns:
         KBBILookupResult: A stable, JSON-serializable object containing lookup results.
     """
-    return _kbbi_lookup_result(query)
+    await ctx.info(
+        "kbbi_lookup called",
+        extra={"query": query},
+    )
+
+    result = _kbbi_lookup_result(query)
+    result_query = result.get("query", query)
+
+    if "error" in result:
+        await ctx.warning(
+            "kbbi_lookup returned an error",
+            extra={"query": result_query, "error": result.get("error")},
+        )
+        return result
+
+    if result["found"]:
+        await ctx.info(
+            "kbbi_lookup found entries",
+            extra={"query": result_query, "entries": len(result["entries"])},
+        )
+        return result
+
+    await ctx.info(
+        "kbbi_lookup found no entries",
+        extra={"query": result_query, "suggestions": len(result["suggestions"])},
+    )
+    return result
 
 
 @mcp.resource("kbbi://{query}")
