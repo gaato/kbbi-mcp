@@ -21,7 +21,7 @@ __all__ = [
 ]
 
 
-def create_mcp() -> FastMCP:
+def create_mcp() -> "FastMCP":
     """Return the FastMCP server instance.
 
     Returns:
@@ -32,7 +32,7 @@ def create_mcp() -> FastMCP:
     return _create_mcp()
 
 
-def create_client() -> Client[Any]:
+def create_client() -> "Client[Any]":
     """Create an in-memory FastMCP client connected to this server.
 
     Returns:

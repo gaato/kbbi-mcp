@@ -1,34 +1,10 @@
 import json
-from typing import Any, Protocol, cast
 
 import pytest
+from conftest import _as_mapping
 
 import kbbi_mcp
 import kbbi_mcp.server as server
-
-
-class _SupportsModelDump(Protocol):
-    def model_dump(self) -> dict[str, Any]:  # pragma: no cover
-        ...
-
-
-def _as_mapping(value: Any) -> dict[str, Any]:
-    if isinstance(value, dict):
-        return cast(dict[str, Any], value)
-
-    model_dump = getattr(value, "model_dump", None)
-    if callable(model_dump):
-        return cast(_SupportsModelDump, value).model_dump()
-
-    # Fallback: best-effort attribute extraction
-    return {
-        "found": getattr(value, "found", None),
-        "query": getattr(value, "query", None),
-        "url": getattr(value, "url", None),
-        "entries": getattr(value, "entries", None),
-        "suggestions": getattr(value, "suggestions", None),
-        "error": getattr(value, "error", None),
-    }
 
 
 @pytest.mark.anyio
