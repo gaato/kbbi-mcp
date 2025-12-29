@@ -48,9 +48,19 @@ Where to put it:
 }
 ```
 
+Note: this example uses `uvx` (part of `uv`) to run the server.
+Install uv here: https://docs.astral.sh/uv/getting-started/installation/
+
+If you don't want to depend on `uv`, install `kbbi-mcp` into an environment and point your client to that environment's executable. For example:
+
+- Use the console script (recommended when available): `kbbi-mcp`
+- Or run the module: `python -m kbbi_mcp`
+
 Authenticated mode is optional. If you have KBBI Daring credentials, configure the environment variables described in [Authentication (optional)](#authentication-optional).
 
 ### Local development (run from this repo)
+
+You'll need `uv` installed: https://docs.astral.sh/uv/getting-started/installation/
 
 This repo includes a `fastmcp.json` file that defines how to run the server (source + uv environment + stdio transport).
 
