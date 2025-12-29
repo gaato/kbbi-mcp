@@ -206,7 +206,7 @@ async def kbbi_lookup(query: str, ctx: Context) -> KBBILookupResult:
         extra={"query": query, "normalized_query": normalized_query},
     )
 
-    result = _kbbi_lookup_result(query)
+    result = _kbbi_lookup_result(normalized_query)
 
     if "error" in result:
         await ctx.warning(
