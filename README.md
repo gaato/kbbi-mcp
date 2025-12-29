@@ -52,18 +52,21 @@ Authenticated mode is optional. If you have KBBI Daring credentials, configure t
 
 ### Local development (run from this repo)
 
-If you want to test a local checkout (no install step), run `uv` in the repository directory:
+This repo includes a `fastmcp.json` file that defines how to run the server (source + uv environment + stdio transport).
 
-```json
-{
-	"mcpServers": {
-		"kbbi-local": {
-			"command": "uv",
-			"args": ["--directory", "/ABS/PATH/TO/kbbi-mcp", "run", "kbbi-mcp"]
-		}
-	}
-}
+To run the server directly from this checkout:
+
+```bash
+fastmcp run
 ```
+
+To generate an `mcpServers` entry you can paste into your MCP client config:
+
+```bash
+fastmcp install mcp-json fastmcp.json
+```
+
+Note: the generated configuration uses absolute paths so it works regardless of the client's working directory.
 
 ## Tool: `kbbi_lookup`
 

@@ -1,13 +1,13 @@
 """Release smoke test.
 
 This script is intended to be executed in CI against the built artifacts:
-- a wheel (`dist/*.whl`)
-- a source distribution (`dist/*.tar.gz`)
+- a wheel ("dist/*.whl")
+- a source distribution ("dist/*.tar.gz")
 
 In GitHub Actions, it is executed via:
 
-- uv run --isolated --no-project --with dist/*.whl tests/smoke_test.py
-- uv run --isolated --no-project --with dist/*.tar.gz tests/smoke_test.py
+- uv run --isolated --no-project --with dist/*.whl scripts/smoke_test.py
+- uv run --isolated --no-project --with dist/*.tar.gz scripts/smoke_test.py
 
 The test must be:
 - Fast (no network)
