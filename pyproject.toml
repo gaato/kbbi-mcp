@@ -95,7 +95,6 @@ indent-style = "space"
 include = ["src"]
 
 [tool.ty.environment]
-python-version = "3.14"
 root = ["./src"]
 extra-paths = ["./typings"]
 
