@@ -15,8 +15,6 @@ The test must be:
 - Strict enough to catch missing files / import issues
 """
 
-from __future__ import annotations
-
 
 def main() -> None:
     # Import should succeed from both wheel and sdist installs.

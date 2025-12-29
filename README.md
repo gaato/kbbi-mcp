@@ -3,7 +3,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/gaato/kbbi-mcp/ci.yml?label=CI)](https://github.com/gaato/kbbi-mcp/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/kbbi-mcp)](https://pypi.org/project/kbbi-mcp/)
 [![Python](https://img.shields.io/pypi/pyversions/kbbi-mcp)](https://pypi.org/project/kbbi-mcp/)
-[![License](https://img.shields.io/pypi/l/kbbi-mcp)](https://github.com/gaato/kbbi-mcp/blob/master/LICENSE)
+[![License](https://img.shields.io/pypi/l/kbbi-mcp)](https://github.com/gaato/kbbi-mcp/blob/HEAD/LICENSE)
 
 An MCP server for querying KBBI (Kamus Besar Bahasa Indonesia / KBBI Daring).
 
@@ -25,10 +25,17 @@ This project is **unofficial** and is **not affiliated with** or endorsed by the
 ## Configure in an MCP client (JSON)
 
 Most MCP clients (including Claude Desktop) use a JSON config with a top-level `mcpServers` object.
+This `mcpServers` format is an emergent standard across the MCP ecosystem (see: https://gofastmcp.com/integrations/mcp-json-configuration.md).
 
-### Claude Desktop (recommended: `uvx`)
+### `mcpServers`-based clients (Claude Desktop / Cursor / Windsurf)
 
 This matches the convention used by many Python MCP servers.
+
+Where to put it:
+
+- Claude Desktop: `~/.claude/claude_desktop_config.json`
+- Cursor: `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global)
+- Windsurf: `~/.codeium/windsurf/mcp_config.json`
 
 ```json
 {
@@ -41,25 +48,7 @@ This matches the convention used by many Python MCP servers.
 }
 ```
 
-### Claude Desktop (optional: authenticated mode)
-
-If you have KBBI Daring credentials, you can pass them via `env`. If you don't, you can omit `env` entirely.
-
-```json
-{
-	"mcpServers": {
-		"kbbi": {
-			"command": "uvx",
-			"args": ["kbbi-mcp"],
-			"env": {
-				"KBBI_EMAIL": "<YOUR_EMAIL>",
-				"KBBI_PASSWORD": "<YOUR_PASSWORD>",
-				"KBBI_COOKIE_PATH": "<OPTIONAL_PATH>"
-			}
-		}
-	}
-}
-```
+Authenticated mode is optional. If you have KBBI Daring credentials, configure the environment variables described in [Authentication (optional)](#authentication-optional).
 
 ### Local development (run from this repo)
 
@@ -154,3 +143,21 @@ Set the following environment variables:
 - `KBBI_EMAIL`
 - `KBBI_PASSWORD`
 - `KBBI_COOKIE_PATH` (optional)
+
+Most `mcpServers`-based clients support passing environment variables via `env` (all values must be strings). Example:
+
+```json
+{
+	"mcpServers": {
+		"kbbi": {
+			"command": "uvx",
+			"args": ["kbbi-mcp"],
+			"env": {
+				"KBBI_EMAIL": "<YOUR_EMAIL>",
+				"KBBI_PASSWORD": "<YOUR_PASSWORD>",
+				"KBBI_COOKIE_PATH": "<OPTIONAL_PATH>"
+			}
+		}
+	}
+}
+```
