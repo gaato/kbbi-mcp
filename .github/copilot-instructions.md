@@ -1,6 +1,6 @@
 # Repository instructions for GitHub Copilot
 
-This repository is a **Python 3.12+** project (see `pyproject.toml`). It provides an MCP server for querying **KBBI**.
+This repository is a **Python 3.13+** project (see `pyproject.toml`). It provides an MCP server for querying **KBBI**.
 
 ## Tooling (source of truth)
 

@@ -9,38 +9,17 @@ This package can be used in two ways:
 To keep imports "polite", we avoid importing `kbbi_mcp.server` eagerly.
 """
 
-from typing import TYPE_CHECKING, Any
+from __future__ import annotations
 
-if TYPE_CHECKING:
-    from fastmcp import Client, FastMCP
+from typing import Any
+
+from .api import create_client, create_mcp
 
 __all__ = [
     "create_client",
     "create_mcp",
     "main",
 ]
-
-
-def create_mcp() -> FastMCP:
-    """Return the FastMCP server instance.
-
-    Returns:
-        FastMCP: The configured server instance.
-    """
-    from .server import create_mcp as _create_mcp
-
-    return _create_mcp()
-
-
-def create_client() -> Client[Any]:
-    """Create an in-memory FastMCP client connected to this server.
-
-    Returns:
-        Client[Any]: A client connected to the server via in-memory transport.
-    """
-    from .server import create_client as _create_client
-
-    return _create_client()
 
 
 def main() -> None:

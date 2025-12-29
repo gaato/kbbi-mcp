@@ -7,7 +7,7 @@
 
 An MCP server for querying KBBI (Kamus Besar Bahasa Indonesia / KBBI Daring).
 
-**Python:** 3.12+
+**Python:** 3.13+
 
 This project exposes a single, stable JSON tool output so LLM clients can decide how to format, translate, or summarize results.
 
