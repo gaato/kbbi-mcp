@@ -3,8 +3,8 @@ name = "kbbi-mcp"
 version = "0.0.5"
 description = "A simple MCP server for querying KBBI (Indonesian dictionary)"
 readme = { file = "README.md", content-type = "text/markdown" }
-license = "Apache-2.0"
-license-files = ["LICENSE", "NOTICE"]
+license = "BlueOak-1.0.0"
+license-files = ["LICENSE"]
 authors = [
     { name = "Gakuto Furuya", email = "57865205+gaato@users.noreply.github.com" }
 ]
