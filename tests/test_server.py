@@ -13,21 +13,21 @@ def test_kbbi_lookup_success(monkeypatch):
     def fake_lookup_serialized(query: str):
         assert query == "apel"
         return {
-            "pranala": "https://kbbi.kemdikbud.go.id/entri/apel",
-            "entri": [
+            "source_url": "https://kbbi.kemendikdasmen.go.id/entri/apel",
+            "entries": [
                 {
-                    "nama": "apel",
-                    "nomor": "",
-                    "kata_dasar": [],
-                    "pelafalan": "",
-                    "bentuk_tidak_baku": [],
-                    "varian": [],
-                    "makna": [
+                    "headword": "apel",
+                    "sense_number": "",
+                    "root_words": [],
+                    "pronunciation": "",
+                    "nonstandard_forms": [],
+                    "variants": [],
+                    "definitions": [
                         {
-                            "kelas": [],
-                            "submakna": ["buah"],
-                            "info": "",
-                            "contoh": [],
+                            "word_classes": [],
+                            "glosses": ["buah"],
+                            "note": "",
+                            "examples": [],
                         }
                     ],
                 }
@@ -39,7 +39,7 @@ def test_kbbi_lookup_success(monkeypatch):
     result = server._kbbi_lookup_result(" apel ")
     assert result["found"] is True
     assert result["query"] == "apel"
-    assert result["url"] == "https://kbbi.kemdikbud.go.id/entri/apel"
+    assert result["url"] == "https://kbbi.kemendikdasmen.go.id/entri/apel"
     assert len(result["entries"]) == 1
     assert result["suggestions"] == []
     assert "error" not in result
@@ -49,9 +49,9 @@ def test_kbbi_lookup_not_found_suggestions(monkeypatch):
     def fake_lookup_serialized(query: str):
         assert query == "asdfgh"
         return {
-            "pranala": "https://kbbi.kemdikbud.go.id/entri/asdfgh",
-            "entri": [],
-            "saran_entri": ["asdf", "asdh"],
+            "source_url": "https://kbbi.kemendikdasmen.go.id/entri/asdfgh",
+            "entries": [],
+            "suggestions": ["asdf", "asdh"],
         }
 
     monkeypatch.setattr(server, "_lookup_serialized", fake_lookup_serialized)

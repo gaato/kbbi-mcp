@@ -14,12 +14,11 @@ class KBBISettings(BaseSettings):
         extra="ignore",
     )
 
-    email: str | None = None
-    password: str | None = None
-    cookie_path: str | None = None
+    # Official KBBI VI Daring host.
+    base_url: str = "https://kbbi.kemendikdasmen.go.id"
 
-    def has_credentials(self) -> bool:
-        return bool(self.email and self.password)
+    # Network timeout in seconds.
+    timeout_seconds: float = 10.0
 
 
 @lru_cache(maxsize=1)
