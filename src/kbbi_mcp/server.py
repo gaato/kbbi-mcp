@@ -167,6 +167,14 @@ def _normalize_entry(entry: dict[str, Any]) -> _KBBIEntri:
 def _parse_serialized_from_html(html: str, url: str, query: str) -> _KBBISerialisasi:
     soup = BeautifulSoup(html, "html.parser")
 
+    page_text = soup.get_text(" ", strip=True).lower()
+    if "entri tidak ditemukan" in page_text:
+        return {
+            "pranala": url,
+            "entri": [],
+            "saran_entri": [],
+        }
+
     entries: list[_KBBIEntri] = []
     for h2 in soup.find_all("h2"):
         title_text = h2.get_text(" ", strip=True)
