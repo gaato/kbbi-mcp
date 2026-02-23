@@ -20,7 +20,7 @@ This project is **unofficial** and is **not affiliated with** or endorsed by the
 - MCP tool: `kbbi_lookup(query: str)`
 - MCP resource: `kbbi://{query}` (same payload as `kbbi_lookup`)
 - No login/auth flow required
-- Queries official KBBI VI Daring directly
+- Uses official KBBI VI Daring by default
 
 ## Configure in an MCP client (JSON)
 

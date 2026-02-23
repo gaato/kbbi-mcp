@@ -34,7 +34,7 @@ Query KBBI (Kamus Besar Bahasa Indonesia / KBBI Daring).
 - Resource: kbbi://{query} (same payload)
 
 Data source policy:
-- Official KBBI VI Daring host only
+- Official KBBI VI Daring host by default
 """
 
 
@@ -71,7 +71,7 @@ def create_client() -> Client[Any]:
 
 
 def _slugify_query(query: str) -> str:
-    return urllib.parse.quote_plus(query.strip().lower())
+    return urllib.parse.quote(query.strip().lower(), safe="")
 
 
 def _build_entri_url(base_url: str, query: str) -> str:
@@ -167,6 +167,39 @@ def _normalize_entry(entry: dict[str, Any]) -> _Entry:
     }
 
 
+def _extract_suggestions(soup: BeautifulSoup, query: str) -> list[str]:
+    """Best-effort extraction of suggestion terms from entry links.
+
+    Args:
+        soup (BeautifulSoup): Parsed HTML document.
+        query (str): Original query string.
+
+    Returns:
+        list[str]: Deduplicated suggestion list.
+    """
+    suggestions: list[str] = []
+    seen: set[str] = set()
+    normalized_query = query.strip().lower()
+
+    for a in soup.find_all("a", href=True):
+        href = str(a.get("href") or "")
+        if "/entri/" not in href:
+            continue
+
+        text = a.get_text(" ", strip=True)
+        if not text:
+            continue
+
+        key = text.lower()
+        if key == normalized_query or key in seen:
+            continue
+
+        seen.add(key)
+        suggestions.append(text)
+
+    return suggestions
+
+
 def _parse_serialized_from_html(html: str, url: str, query: str) -> _LookupSerialized:
     soup = BeautifulSoup(html, "html.parser")
 
@@ -175,7 +208,7 @@ def _parse_serialized_from_html(html: str, url: str, query: str) -> _LookupSeria
         return {
             "source_url": url,
             "entries": [],
-            "suggestions": [],
+            "suggestions": _extract_suggestions(soup, query),
         }
 
     entries: list[_Entry] = []
@@ -226,7 +259,7 @@ def _parse_serialized_from_html(html: str, url: str, query: str) -> _LookupSeria
     return {
         "source_url": url,
         "entries": entries,
-        "suggestions": [],
+        "suggestions": [] if entries else _extract_suggestions(soup, query),
     }
 
 
