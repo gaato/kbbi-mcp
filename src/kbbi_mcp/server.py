@@ -147,7 +147,14 @@ def _extract_makna_from_li(li: Any) -> dict[str, Any]:
 
 
 def _normalize_entry(entry: dict[str, Any]) -> _KBBIEntri:
-    """Normalize an entry dict so downstream clients get a stable shape."""
+    """Normalize an entry dict so downstream clients get a stable shape.
+
+    Args:
+        entry (dict[str, Any]): A partially populated entry payload.
+
+    Returns:
+        _KBBIEntri: Entry payload with all optional fields normalized.
+    """
     return {
         "nama": entry.get("nama", ""),
         "nomor": entry.get("nomor", ""),
