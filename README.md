@@ -19,7 +19,7 @@ This project is **unofficial** and is **not affiliated with** or endorsed by the
 
 - MCP tool: `kbbi_lookup(query: str)`
 - MCP resource: `kbbi://{query}` (same payload as `kbbi_lookup`)
-- Works without credentials
+- No login/auth flow required
 - Queries official KBBI VI Daring directly (with fallback mirror)
 
 ## Configure in an MCP client (JSON)
@@ -103,12 +103,12 @@ Returns a JSON object:
 - `suggestions` (list)
 - `error` (string, optional): present only when the request is invalid (e.g. empty query) or an unexpected error occurs
 
-`entries` is based on KBBI's `serialisasi()` shape from the underlying `kbbi` library, with a small normalization:
+`entries` uses a stable JSON shape with normalization:
 
 - `etimologi` is always present (as an object or `null`)
 - related-word lists are always present (as arrays, possibly empty)
 
-This keeps the tool output stable across anonymous/authenticated mode.
+This keeps tool output predictable across source variations.
 
 Example tool output:
 

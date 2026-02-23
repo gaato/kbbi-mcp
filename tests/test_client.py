@@ -9,9 +9,6 @@ import kbbi_mcp.server as server
 
 @pytest.mark.anyio
 async def test_create_client_can_call_tool(monkeypatch):
-    monkeypatch.delenv("KBBI_EMAIL", raising=False)
-    monkeypatch.delenv("KBBI_PASSWORD", raising=False)
-
     def fake_lookup_serialized(query: str):
         assert query == "apel"
         return {
@@ -50,9 +47,6 @@ async def test_create_client_can_call_tool(monkeypatch):
 
 @pytest.mark.anyio
 async def test_create_client_exposes_kbbi_resource_template(monkeypatch):
-    monkeypatch.delenv("KBBI_EMAIL", raising=False)
-    monkeypatch.delenv("KBBI_PASSWORD", raising=False)
-
     async with kbbi_mcp.create_client() as client:
         templates = await client.list_resource_templates()
 
@@ -63,9 +57,6 @@ async def test_create_client_exposes_kbbi_resource_template(monkeypatch):
 
 @pytest.mark.anyio
 async def test_create_client_can_read_kbbi_resource(monkeypatch):
-    monkeypatch.delenv("KBBI_EMAIL", raising=False)
-    monkeypatch.delenv("KBBI_PASSWORD", raising=False)
-
     def fake_lookup_serialized(query: str):
         assert query == "apel"
         return {

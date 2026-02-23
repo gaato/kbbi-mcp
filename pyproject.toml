@@ -95,7 +95,6 @@ include = ["src"]
 
 [tool.ty.environment]
 root = ["./src"]
-extra-paths = ["./typings"]
 
 [tool.pytest.ini_options]
 python_files = [
