@@ -1,16 +1,19 @@
-import warnings
-from collections.abc import Iterator
-from contextlib import contextmanager
+from __future__ import annotations
+
+import re
+import urllib.error
+import urllib.parse
+import urllib.request
 from functools import lru_cache
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as package_version
-from typing import Any, cast
+from typing import Any
 
+from bs4 import BeautifulSoup
 from fastmcp import Client, Context, FastMCP
-from kbbi import KBBI, AutentikasiKBBI, TidakDitemukan
 
 from .settings import get_settings
-from .types import KBBILookupResult, _KBBIEntri, _KBBIEntriMaybeUser, _KBBISerialisasi
+from .types import KBBILookupResult, _KBBIEntri, _KBBISerialisasi
 
 
 def _get_package_version() -> str | None:
@@ -31,8 +34,9 @@ Query KBBI (Kamus Besar Bahasa Indonesia / KBBI Daring).
 - Tool: kbbi_lookup(query: str) -> JSON
 - Resource: kbbi://{query} (same payload)
 
-Anonymous mode works out of the box.
-Optional authenticated mode via env: KBBI_EMAIL, KBBI_PASSWORD (and optional KBBI_COOKIE_PATH).
+Data source policy:
+- Primary: official KBBI VI Daring host
+- Fallback: public mirror (kbbi.web.id) when the official host is unreachable
 """
 
 
@@ -68,40 +72,90 @@ def create_client() -> Client[Any]:
     return Client(create_mcp())
 
 
-@contextmanager
-def _suppress_kbbi_deprecations() -> Iterator[None]:
-    """Suppress noisy deprecation warnings emitted by `kbbi` internals.
+def _slugify_query(query: str) -> str:
+    return urllib.parse.quote_plus(query.strip().lower())
 
-    Yields:
-        None: Control with kbbi deprecation warnings suppressed.
+
+def _build_entri_url(base_url: str, query: str) -> str:
+    return f"{base_url.rstrip('/')}/entri/{_slugify_query(query)}"
+
+
+def _fetch_html(url: str, timeout_seconds: float) -> str:
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "kbbi-mcp/0 (https://github.com/gaato/kbbi-mcp)",
+            "Accept": "text/html,application/xhtml+xml",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=timeout_seconds) as res:
+        return res.read().decode("utf-8", errors="ignore")
+
+
+def _clean_headword(raw: str, fallback_query: str) -> tuple[str, str]:
+    """Return (nama, nomor) parsed from an <h2> text.
+
+    The page often renders forms like `a.pel1` (with <sup>1</sup>) or
+    `a.pel /apêl/`.
     """
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            category=DeprecationWarning,
-            module=r"kbbi\..*",
+    text = " ".join(raw.split()).strip()
+    if not text:
+        return fallback_query, ""
+
+    match = re.search(r"^(.*?)(\d+)$", text)
+    if match:
+        nama = match.group(1).strip() or fallback_query
+        nomor = match.group(2)
+    else:
+        nama = text
+        nomor = ""
+
+    # Remove syllable markers like a.pel -> apel for a cleaner canonical name.
+    nama = nama.replace(".", "").strip()
+    return nama or fallback_query, nomor
+
+
+def _extract_makna_from_li(li: Any) -> dict[str, Any]:
+    kelas: list[dict[str, str]] = []
+    for span in li.select("font[color='red'] span"):
+        kode = span.get_text(" ", strip=True)
+        title = (span.get("title") or "").strip()
+        name, _, desc = title.partition(":")
+        kelas.append(
+            {
+                "kode": kode,
+                "nama": (name or kode).strip(),
+                "deskripsi": desc.strip(),
+            }
         )
-        yield
 
+    contoh = [ex.get_text(" ", strip=True) for ex in li.select("font[color='grey'] i")]
+    contoh = [c for c in contoh if c]
 
-def _normalize_entry(entry: _KBBIEntriMaybeUser) -> _KBBIEntri:
-    """Normalize an entry dict so downstream clients get a stable shape.
+    # Build definition text without class/example decorations.
+    li_copy = BeautifulSoup(str(li), "html.parser")
+    for noisy in li_copy.select("font[color='red'], font[color='grey']"):
+        noisy.decompose()
+    submakna_text = li_copy.get_text(" ", strip=True)
 
-    Args:
-        entry (_KBBIEntriMaybeUser): Entry payload from `kbbi.KBBI.serialisasi()`.
-
-    Returns:
-        _KBBIEntri: Normalized entry payload.
-    """
     return {
-        "nama": entry["nama"],
-        "nomor": entry["nomor"],
-        "kata_dasar": entry["kata_dasar"],
-        "pelafalan": entry["pelafalan"],
-        "bentuk_tidak_baku": entry["bentuk_tidak_baku"],
-        "varian": entry["varian"],
-        "makna": entry["makna"],
-        # User features (may be absent in anonymous mode).
+        "kelas": kelas,
+        "submakna": [submakna_text] if submakna_text else [],
+        "info": "",
+        "contoh": contoh,
+    }
+
+
+def _normalize_entry(entry: dict[str, Any]) -> _KBBIEntri:
+    """Normalize an entry dict so downstream clients get a stable shape."""
+    return {
+        "nama": entry.get("nama", ""),
+        "nomor": entry.get("nomor", ""),
+        "kata_dasar": entry.get("kata_dasar", []),
+        "pelafalan": entry.get("pelafalan", ""),
+        "bentuk_tidak_baku": entry.get("bentuk_tidak_baku", []),
+        "varian": entry.get("varian", []),
+        "makna": entry.get("makna", []),
         "etimologi": entry.get("etimologi"),
         "kata_turunan": entry.get("kata_turunan", []),
         "gabungan_kata": entry.get("gabungan_kata", []),
@@ -110,47 +164,79 @@ def _normalize_entry(entry: _KBBIEntriMaybeUser) -> _KBBIEntri:
     }
 
 
-@lru_cache(maxsize=1)
-def _get_auth() -> AutentikasiKBBI | None:
-    """Create an authenticated KBBI session, if credentials are configured.
+def _parse_serialized_from_html(html: str, url: str, query: str) -> _KBBISerialisasi:
+    soup = BeautifulSoup(html, "html.parser")
 
-    Returns:
-        AutentikasiKBBI | None: Auth session, or `None` for anonymous mode.
-    """
-    settings = get_settings()
+    entries: list[_KBBIEntri] = []
+    for h2 in soup.find_all("h2"):
+        title_text = h2.get_text(" ", strip=True)
+        if not title_text:
+            continue
 
-    if not settings.has_credentials():
-        return None
+        nama, nomor = _clean_headword(title_text, query)
+        pelafalan_el = h2.select_one("span.syllable")
+        pelafalan = pelafalan_el.get_text(" ", strip=True) if pelafalan_el else ""
 
-    # AutentikasiKBBI persists cookies by default (platform-dependent path).
-    if settings.cookie_path:
-        return AutentikasiKBBI(settings.email, settings.password, lokasi_kuki=settings.cookie_path)
+        # Collect the first list (<ol>/<ul>) after the header before next <h2>.
+        makna_items: list[dict[str, Any]] = []
+        for sibling in h2.next_siblings:
+            sibling_name = getattr(sibling, "name", None)
+            if sibling_name == "h2":
+                break
+            if sibling_name in {"ol", "ul"}:
+                lis = sibling.find_all("li")
+                for li in lis:
+                    makna_items.append(_extract_makna_from_li(li))
+                if lis:
+                    break
 
-    return AutentikasiKBBI(settings.email, settings.password)
+        if not makna_items:
+            continue
+
+        entries.append(
+            {
+                "nama": nama,
+                "nomor": nomor,
+                "kata_dasar": [],
+                "pelafalan": pelafalan,
+                "bentuk_tidak_baku": [],
+                "varian": [],
+                "makna": makna_items,
+                "etimologi": None,
+                "kata_turunan": [],
+                "gabungan_kata": [],
+                "peribahasa": [],
+                "idiom": [],
+            }
+        )
+
+    return {
+        "pranala": url,
+        "entri": entries,
+        "saran_entri": [],
+    }
 
 
 @lru_cache(maxsize=256)
 def _lookup_serialized(query: str) -> _KBBISerialisasi:
-    """Look up a query in KBBI and return the raw `serialisasi()` dictionary.
+    """Look up a query in KBBI and return a serialized dictionary.
 
     Args:
         query (str): A word or phrase to look up.
 
     Returns:
-        _KBBISerialisasi: A dict matching `_KBBISerialisasi`.
+        _KBBISerialisasi: A dictionary compatible with the previous kbbi lib shape.
     """
-    auth = _get_auth()
+    settings = get_settings()
+    official_url = _build_entri_url(settings.base_url, query)
 
-    with _suppress_kbbi_deprecations():
-        try:
-            entry = KBBI(query, auth) if auth is not None else KBBI(query)
-        except TidakDitemukan as e:
-            # The exception carries an object with suggestions.
-            entry = e.objek
-
-        # kbbi-python returns JSON-serializable dicts, but the library isn't typed.
-        raw: dict[str, Any] = cast(Any, entry).serialisasi()
-        return cast(_KBBISerialisasi, raw)
+    try:
+        html = _fetch_html(official_url, timeout_seconds=settings.timeout_seconds)
+        return _parse_serialized_from_html(html, official_url, query)
+    except (urllib.error.URLError, TimeoutError):
+        fallback_url = _build_entri_url(settings.fallback_base_url, query)
+        html = _fetch_html(fallback_url, timeout_seconds=settings.timeout_seconds)
+        return _parse_serialized_from_html(html, fallback_url, query)
 
 
 def _kbbi_lookup_result(query: str) -> KBBILookupResult:

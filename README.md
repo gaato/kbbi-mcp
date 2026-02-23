@@ -19,8 +19,8 @@ This project is **unofficial** and is **not affiliated with** or endorsed by the
 
 - MCP tool: `kbbi_lookup(query: str)`
 - MCP resource: `kbbi://{query}` (same payload as `kbbi_lookup`)
-- Works without credentials (anonymous mode)
-- Optional authenticated mode via environment variables
+- Works without credentials
+- Queries official KBBI VI Daring directly (with fallback mirror)
 
 ## Configure in an MCP client (JSON)
 
@@ -56,7 +56,7 @@ If you don't want to depend on `uv`, install `kbbi-mcp` into an environment and 
 - Use the console script (recommended when available): `kbbi-mcp`
 - Or run the module: `python -m kbbi_mcp`
 
-Authenticated mode is optional. If you have KBBI Daring credentials, configure the environment variables described in [Authentication (optional)](#authentication-optional).
+The server performs direct lookups to the official KBBI VI Daring site. If the official host is unreachable, it falls back to `kbbi.web.id`.
 
 ### Local development (run from this repo)
 
@@ -116,7 +116,7 @@ Example tool output:
 {
 	"found": true,
 	"query": "makan",
-	"url": "https://kbbi.kemdikbud.go.id/entri/makan",
+	"url": "https://kbbi.kemendikdasmen.go.id/entri/makan",
 	"entries": [
 		{
 			"nama": "makan",
@@ -145,32 +145,15 @@ This server also exposes the same payload as a read-only MCP resource.
 
 For low-level debugging, a client would read it using `resources/read` with `{"uri": "kbbi://makan"}`.
 
-## Authentication (optional)
+## Data sources and fallback
 
-Anonymous mode works out of the box.
+Lookup behavior:
 
-If you have KBBI Daring credentials, some additional fields may become available.
+1. Primary: `https://kbbi.kemendikdasmen.go.id/entri/{query}`
+2. Fallback (when primary is unreachable): `https://kbbi.web.id/{query}`
 
-Set the following environment variables:
+Optional environment variables:
 
-- `KBBI_EMAIL`
-- `KBBI_PASSWORD`
-- `KBBI_COOKIE_PATH` (optional)
-
-Most `mcpServers`-based clients support passing environment variables via `env` (all values must be strings). Example:
-
-```json
-{
-	"mcpServers": {
-		"kbbi": {
-			"command": "uvx",
-			"args": ["kbbi-mcp"],
-			"env": {
-				"KBBI_EMAIL": "<YOUR_EMAIL>",
-				"KBBI_PASSWORD": "<YOUR_PASSWORD>",
-				"KBBI_COOKIE_PATH": "<OPTIONAL_PATH>"
-			}
-		}
-	}
-}
-```
+- `KBBI_BASE_URL` (default: `https://kbbi.kemendikdasmen.go.id`)
+- `KBBI_FALLBACK_BASE_URL` (default: `https://kbbi.web.id`)
+- `KBBI_TIMEOUT_SECONDS` (default: `10.0`)

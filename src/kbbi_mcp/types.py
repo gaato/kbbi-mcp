@@ -31,7 +31,7 @@ class _KBBIEntriMaybeUser(TypedDict):
     varian: list[str]
     makna: list[_KBBIMakna]
 
-    # Present only when authenticated and `fitur_pengguna=True`.
+    # Optional enrichments (not always available from every source).
     etimologi: NotRequired[_KBBIEtimologi | None]
     kata_turunan: NotRequired[list[str]]
     gabungan_kata: NotRequired[list[str]]
@@ -48,7 +48,7 @@ class _KBBIEntri(TypedDict):
     varian: list[str]
     makna: list[_KBBIMakna]
 
-    # User features (normalized for anonymous mode).
+    # Optional related fields (normalized to stable defaults).
     etimologi: _KBBIEtimologi | None
     kata_turunan: list[str]
     gabungan_kata: list[str]
