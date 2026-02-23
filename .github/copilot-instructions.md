@@ -16,8 +16,9 @@ This repository is a **Python 3.13+** project (see `pyproject.toml`). It provide
 Run these before finishing a change:
 
 - Install deps (incl. dev tools): `uv sync --frozen --group dev`
+- Auto-format: `uv run ruff format .`
 - Lint: `uv run ruff check .`
-- Format (check only): `uv run ruff format --check .`
+- Format (final guard): `uv run ruff format --check .`
 - Type check: `uv run ty check`
 - Tests: `uv run pytest`
 
