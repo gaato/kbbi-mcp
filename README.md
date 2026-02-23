@@ -103,9 +103,9 @@ Returns a JSON object:
 - `suggestions` (list)
 - `error` (string, optional): present only when the request is invalid (e.g. empty query) or an unexpected error occurs
 
-`entries` uses a stable JSON shape with normalization:
+`entries` uses an English-key schema with normalization:
 
-- `etimologi` is always present (as an object or `null`)
+- `etymology` is always present (as an object or `null`)
 - related-word lists are always present (as arrays, possibly empty)
 
 This keeps tool output predictable across source variations.
@@ -119,18 +119,18 @@ Example tool output:
 	"url": "https://kbbi.kemendikdasmen.go.id/entri/makan",
 	"entries": [
 		{
-			"nama": "makan",
-			"nomor": "",
-			"kata_dasar": [],
-			"pelafalan": "",
-			"bentuk_tidak_baku": [],
-			"varian": [],
-			"makna": [],
-			"etimologi": null,
-			"kata_turunan": [],
-			"gabungan_kata": [],
-			"peribahasa": [],
-			"idiom": []
+			"headword": "makan",
+			"sense_number": "",
+			"root_words": [],
+			"pronunciation": "",
+			"nonstandard_forms": [],
+			"variants": [],
+			"definitions": [],
+			"etymology": null,
+			"derived_words": [],
+			"compound_words": [],
+			"proverbs": [],
+			"idioms": []
 		}
 	],
 	"suggestions": []
@@ -150,7 +150,7 @@ For low-level debugging, a client would read it using `resources/read` with `{"u
 Lookup behavior:
 
 1. Primary: `https://kbbi.kemendikdasmen.go.id/entri/{query}`
-2. Fallback (when primary is unreachable): `https://kbbi.web.id/{query}`
+2. Fallback (when primary is unreachable): `https://kbbi.web.id/entri/{query}`
 
 Optional environment variables:
 

@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup, Tag
 from fastmcp import Client, Context, FastMCP
 
 from .settings import get_settings
-from .types import KBBILookupResult, _KBBIEntri, _KBBIMakna, _KBBISerialisasi
+from .types import KBBILookupResult, _Definition, _Entry, _LookupSerialized, _WordClass
 
 
 def _get_package_version() -> str | None:
@@ -93,7 +93,7 @@ def _fetch_html(url: str, timeout_seconds: float) -> str:
 
 
 def _clean_headword(raw: str, fallback_query: str) -> tuple[str, str]:
-    """Return (nama, nomor) parsed from an <h2> text.
+    """Return (headword, sense_number) parsed from an <h2> text.
 
     The page often renders forms like `a.pel1` (with <sup>1</sup>) or
     `a.pel /apêl/`.
@@ -104,94 +104,94 @@ def _clean_headword(raw: str, fallback_query: str) -> tuple[str, str]:
 
     match = re.search(r"^(.*?)(\d+)$", text)
     if match:
-        nama = match.group(1).strip() or fallback_query
-        nomor = match.group(2)
+        headword = match.group(1).strip() or fallback_query
+        sense_number = match.group(2)
     else:
-        nama = text
-        nomor = ""
+        headword = text
+        sense_number = ""
 
     # Remove syllable markers like a.pel -> apel for a cleaner canonical name.
-    nama = nama.replace(".", "").strip()
-    return nama or fallback_query, nomor
+    headword = headword.replace(".", "").strip()
+    return headword or fallback_query, sense_number
 
 
-def _extract_makna_from_li(li: Tag) -> _KBBIMakna:
-    kelas: list[dict[str, str]] = []
+def _extract_definition_from_li(li: Tag) -> _Definition:
+    word_classes: list[_WordClass] = []
     for span in li.select("font[color='red'] span"):
-        kode = span.get_text(" ", strip=True)
+        code = span.get_text(" ", strip=True)
         title = str(span.get("title") or "").strip()
-        name, _, desc = title.partition(":")
-        kelas.append({
-            "kode": kode,
-            "nama": (name or kode).strip(),
-            "deskripsi": desc.strip(),
+        name, _, description = title.partition(":")
+        word_classes.append({
+            "code": code,
+            "name": (name or code).strip(),
+            "description": description.strip(),
         })
 
-    contoh = [ex.get_text(" ", strip=True) for ex in li.select("font[color='grey'] i")]
-    contoh = [c for c in contoh if c]
+    examples = [ex.get_text(" ", strip=True) for ex in li.select("font[color='grey'] i")]
+    examples = [c for c in examples if c]
 
     # Build definition text without class/example decorations.
     li_copy = BeautifulSoup(str(li), "html.parser")
     for noisy in li_copy.select("font[color='red'], font[color='grey']"):
         noisy.decompose()
-    submakna_text = li_copy.get_text(" ", strip=True)
+    gloss_text = li_copy.get_text(" ", strip=True)
 
     return {
-        "kelas": kelas,
-        "submakna": [submakna_text] if submakna_text else [],
-        "info": "",
-        "contoh": contoh,
+        "word_classes": word_classes,
+        "glosses": [gloss_text] if gloss_text else [],
+        "note": "",
+        "examples": examples,
     }
 
 
-def _normalize_entry(entry: dict[str, Any]) -> _KBBIEntri:
+def _normalize_entry(entry: dict[str, Any]) -> _Entry:
     """Normalize an entry dict so downstream clients get a stable shape.
 
     Args:
         entry (dict[str, Any]): A partially populated entry payload.
 
     Returns:
-        _KBBIEntri: Entry payload with all optional fields normalized.
+        _Entry: Entry payload with all optional fields normalized.
     """
     return {
-        "nama": entry.get("nama", ""),
-        "nomor": entry.get("nomor", ""),
-        "kata_dasar": entry.get("kata_dasar", []),
-        "pelafalan": entry.get("pelafalan", ""),
-        "bentuk_tidak_baku": entry.get("bentuk_tidak_baku", []),
-        "varian": entry.get("varian", []),
-        "makna": entry.get("makna", []),
-        "etimologi": entry.get("etimologi"),
-        "kata_turunan": entry.get("kata_turunan", []),
-        "gabungan_kata": entry.get("gabungan_kata", []),
-        "peribahasa": entry.get("peribahasa", []),
-        "idiom": entry.get("idiom", []),
+        "headword": entry.get("headword", ""),
+        "sense_number": entry.get("sense_number", ""),
+        "root_words": entry.get("root_words", []),
+        "pronunciation": entry.get("pronunciation", ""),
+        "nonstandard_forms": entry.get("nonstandard_forms", []),
+        "variants": entry.get("variants", []),
+        "definitions": entry.get("definitions", []),
+        "etymology": entry.get("etymology"),
+        "derived_words": entry.get("derived_words", []),
+        "compound_words": entry.get("compound_words", []),
+        "proverbs": entry.get("proverbs", []),
+        "idioms": entry.get("idioms", []),
     }
 
 
-def _parse_serialized_from_html(html: str, url: str, query: str) -> _KBBISerialisasi:
+def _parse_serialized_from_html(html: str, url: str, query: str) -> _LookupSerialized:
     soup = BeautifulSoup(html, "html.parser")
 
     page_text = soup.get_text(" ", strip=True).lower()
     if "entri tidak ditemukan" in page_text:
         return {
-            "pranala": url,
-            "entri": [],
-            "saran_entri": [],
+            "source_url": url,
+            "entries": [],
+            "suggestions": [],
         }
 
-    entries: list[_KBBIEntri] = []
+    entries: list[_Entry] = []
     for h2 in soup.find_all("h2"):
         title_text = h2.get_text(" ", strip=True)
         if not title_text:
             continue
 
-        nama, nomor = _clean_headword(title_text, query)
-        pelafalan_el = h2.select_one("span.syllable")
-        pelafalan = pelafalan_el.get_text(" ", strip=True) if pelafalan_el else ""
+        headword, sense_number = _clean_headword(title_text, query)
+        pronunciation_el = h2.select_one("span.syllable")
+        pronunciation = pronunciation_el.get_text(" ", strip=True) if pronunciation_el else ""
 
         # Collect the first list (<ol>/<ul>) after the header before next <h2>.
-        makna_items: list[_KBBIMakna] = []
+        definitions: list[_Definition] = []
         for sibling in h2.next_siblings:
             if not isinstance(sibling, Tag):
                 continue
@@ -203,44 +203,44 @@ def _parse_serialized_from_html(html: str, url: str, query: str) -> _KBBISeriali
                 lis = sibling.find_all("li")
                 for li in lis:
                     if isinstance(li, Tag):
-                        makna_items.append(_extract_makna_from_li(li))
+                        definitions.append(_extract_definition_from_li(li))
                 if lis:
                     break
 
-        if not makna_items:
+        if not definitions:
             continue
 
         entries.append({
-            "nama": nama,
-            "nomor": nomor,
-            "kata_dasar": [],
-            "pelafalan": pelafalan,
-            "bentuk_tidak_baku": [],
-            "varian": [],
-            "makna": makna_items,
-            "etimologi": None,
-            "kata_turunan": [],
-            "gabungan_kata": [],
-            "peribahasa": [],
-            "idiom": [],
+            "headword": headword,
+            "sense_number": sense_number,
+            "root_words": [],
+            "pronunciation": pronunciation,
+            "nonstandard_forms": [],
+            "variants": [],
+            "definitions": definitions,
+            "etymology": None,
+            "derived_words": [],
+            "compound_words": [],
+            "proverbs": [],
+            "idioms": [],
         })
 
     return {
-        "pranala": url,
-        "entri": entries,
-        "saran_entri": [],
+        "source_url": url,
+        "entries": entries,
+        "suggestions": [],
     }
 
 
 @lru_cache(maxsize=256)
-def _lookup_serialized(query: str) -> _KBBISerialisasi:
-    """Look up a query in KBBI and return a serialized dictionary.
+def _lookup_serialized(query: str) -> _LookupSerialized:
+    """Look up a query in KBBI and return a normalized serialized dictionary.
 
     Args:
         query (str): A word or phrase to look up.
 
     Returns:
-        _KBBISerialisasi: A dictionary compatible with the previous kbbi lib shape.
+        _LookupSerialized: Source URL, normalized entries, and suggestions.
     """
     settings = get_settings()
     official_url = _build_entri_url(settings.base_url, query)
@@ -278,13 +278,13 @@ def _kbbi_lookup_result(query: str) -> KBBILookupResult:
             "error": f"{type(e).__name__}: {e}",
         }
 
-    entries = [_normalize_entry(e) for e in serialized.get("entri", [])]
-    suggestions = serialized.get("saran_entri", [])
+    entries = [_normalize_entry(e) for e in serialized.get("entries", [])]
+    suggestions = serialized.get("suggestions", [])
 
     return {
         "found": len(entries) > 0,
         "query": normalized_query,
-        "url": serialized.get("pranala"),
+        "url": serialized.get("source_url"),
         "entries": entries,
         "suggestions": suggestions,
     }

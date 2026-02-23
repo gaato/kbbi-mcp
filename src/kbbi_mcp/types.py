@@ -1,65 +1,48 @@
 from typing import NotRequired, TypedDict
 
 
-class _KBBIKelas(TypedDict):
-    kode: str
-    nama: str
-    deskripsi: str
+class _WordClass(TypedDict):
+    code: str
+    name: str
+    description: str
 
 
-class _KBBIMakna(TypedDict):
-    kelas: list[dict[str, str]]
-    submakna: list[str]
-    info: str
-    contoh: list[str]
+class _Definition(TypedDict):
+    word_classes: list[_WordClass]
+    glosses: list[str]
+    note: str
+    examples: list[str]
 
 
-class _KBBIEtimologi(TypedDict):
-    bahasa: str
-    kelas: list[str]
-    asal_kata: str
-    pelafalan: str
-    arti: list[str]
+class _Etymology(TypedDict):
+    language: str
+    classes: list[str]
+    source_word: str
+    pronunciation: str
+    meanings: list[str]
 
 
-class _KBBIEntriMaybeUser(TypedDict):
-    nama: str
-    nomor: str
-    kata_dasar: list[str]
-    pelafalan: str
-    bentuk_tidak_baku: list[str]
-    varian: list[str]
-    makna: list[_KBBIMakna]
-
-    # Optional enrichments (not always available from every source).
-    etimologi: NotRequired[_KBBIEtimologi | None]
-    kata_turunan: NotRequired[list[str]]
-    gabungan_kata: NotRequired[list[str]]
-    peribahasa: NotRequired[list[str]]
-    idiom: NotRequired[list[str]]
-
-
-class _KBBIEntri(TypedDict):
-    nama: str
-    nomor: str
-    kata_dasar: list[str]
-    pelafalan: str
-    bentuk_tidak_baku: list[str]
-    varian: list[str]
-    makna: list[_KBBIMakna]
+class _Entry(TypedDict):
+    headword: str
+    sense_number: str
+    root_words: list[str]
+    pronunciation: str
+    nonstandard_forms: list[str]
+    variants: list[str]
+    definitions: list[_Definition]
 
     # Optional related fields (normalized to stable defaults).
-    etimologi: _KBBIEtimologi | None
-    kata_turunan: list[str]
-    gabungan_kata: list[str]
-    peribahasa: list[str]
-    idiom: list[str]
+    etymology: _Etymology | None
+    derived_words: list[str]
+    compound_words: list[str]
+    proverbs: list[str]
+    idioms: list[str]
 
 
-class _KBBISerialisasi(TypedDict):
-    pranala: str
-    entri: list[_KBBIEntri]
-    saran_entri: NotRequired[list[str]]
+class _LookupSerialized(TypedDict):
+    source_url: str
+    entries: list[_Entry]
+    suggestions: NotRequired[list[str]]
 
 
 class KBBILookupResult(TypedDict):
@@ -68,6 +51,6 @@ class KBBILookupResult(TypedDict):
     found: bool
     query: str
     url: str | None
-    entries: list[_KBBIEntri]
+    entries: list[_Entry]
     suggestions: list[str]
     error: NotRequired[str]
