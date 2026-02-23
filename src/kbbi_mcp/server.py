@@ -121,13 +121,11 @@ def _extract_makna_from_li(li: Any) -> dict[str, Any]:
         kode = span.get_text(" ", strip=True)
         title = (span.get("title") or "").strip()
         name, _, desc = title.partition(":")
-        kelas.append(
-            {
-                "kode": kode,
-                "nama": (name or kode).strip(),
-                "deskripsi": desc.strip(),
-            }
-        )
+        kelas.append({
+            "kode": kode,
+            "nama": (name or kode).strip(),
+            "deskripsi": desc.strip(),
+        })
 
     contoh = [ex.get_text(" ", strip=True) for ex in li.select("font[color='grey'] i")]
     contoh = [c for c in contoh if c]
@@ -208,22 +206,20 @@ def _parse_serialized_from_html(html: str, url: str, query: str) -> _KBBISeriali
         if not makna_items:
             continue
 
-        entries.append(
-            {
-                "nama": nama,
-                "nomor": nomor,
-                "kata_dasar": [],
-                "pelafalan": pelafalan,
-                "bentuk_tidak_baku": [],
-                "varian": [],
-                "makna": makna_items,
-                "etimologi": None,
-                "kata_turunan": [],
-                "gabungan_kata": [],
-                "peribahasa": [],
-                "idiom": [],
-            }
-        )
+        entries.append({
+            "nama": nama,
+            "nomor": nomor,
+            "kata_dasar": [],
+            "pelafalan": pelafalan,
+            "bentuk_tidak_baku": [],
+            "varian": [],
+            "makna": makna_items,
+            "etimologi": None,
+            "kata_turunan": [],
+            "gabungan_kata": [],
+            "peribahasa": [],
+            "idiom": [],
+        })
 
     return {
         "pranala": url,
