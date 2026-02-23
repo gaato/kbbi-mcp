@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-import urllib.error
 import urllib.parse
 import urllib.request
 from functools import lru_cache
@@ -35,8 +34,7 @@ Query KBBI (Kamus Besar Bahasa Indonesia / KBBI Daring).
 - Resource: kbbi://{query} (same payload)
 
 Data source policy:
-- Primary: official KBBI VI Daring host
-- Fallback: public mirror (kbbi.web.id) when the official host is unreachable
+- Official KBBI VI Daring host only
 """
 
 
@@ -245,13 +243,8 @@ def _lookup_serialized(query: str) -> _LookupSerialized:
     settings = get_settings()
     official_url = _build_entri_url(settings.base_url, query)
 
-    try:
-        html = _fetch_html(official_url, timeout_seconds=settings.timeout_seconds)
-        return _parse_serialized_from_html(html, official_url, query)
-    except (urllib.error.URLError, TimeoutError):
-        fallback_url = _build_entri_url(settings.fallback_base_url, query)
-        html = _fetch_html(fallback_url, timeout_seconds=settings.timeout_seconds)
-        return _parse_serialized_from_html(html, fallback_url, query)
+    html = _fetch_html(official_url, timeout_seconds=settings.timeout_seconds)
+    return _parse_serialized_from_html(html, official_url, query)
 
 
 def _kbbi_lookup_result(query: str) -> KBBILookupResult:

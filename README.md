@@ -20,7 +20,7 @@ This project is **unofficial** and is **not affiliated with** or endorsed by the
 - MCP tool: `kbbi_lookup(query: str)`
 - MCP resource: `kbbi://{query}` (same payload as `kbbi_lookup`)
 - No login/auth flow required
-- Queries official KBBI VI Daring directly (with fallback mirror)
+- Queries official KBBI VI Daring directly
 
 ## Configure in an MCP client (JSON)
 
@@ -56,7 +56,7 @@ If you don't want to depend on `uv`, install `kbbi-mcp` into an environment and 
 - Use the console script (recommended when available): `kbbi-mcp`
 - Or run the module: `python -m kbbi_mcp`
 
-The server performs direct lookups to the official KBBI VI Daring site. If the official host is unreachable, it falls back to `kbbi.web.id`.
+The server performs direct lookups to the official KBBI VI Daring site.
 
 ### Local development (run from this repo)
 
@@ -145,15 +145,13 @@ This server also exposes the same payload as a read-only MCP resource.
 
 For low-level debugging, a client would read it using `resources/read` with `{"uri": "kbbi://makan"}`.
 
-## Data sources and fallback
+## Data source
 
 Lookup behavior:
 
-1. Primary: `https://kbbi.kemendikdasmen.go.id/entri/{query}`
-2. Fallback (when primary is unreachable): `https://kbbi.web.id/entri/{query}`
+- Official source: `https://kbbi.kemendikdasmen.go.id/entri/{query}`
 
 Optional environment variables:
 
 - `KBBI_BASE_URL` (default: `https://kbbi.kemendikdasmen.go.id`)
-- `KBBI_FALLBACK_BASE_URL` (default: `https://kbbi.web.id`)
 - `KBBI_TIMEOUT_SECONDS` (default: `10.0`)

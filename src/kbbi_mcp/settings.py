@@ -14,11 +14,8 @@ class KBBISettings(BaseSettings):
         extra="ignore",
     )
 
-    # Current official KBBI VI Daring host.
+    # Official KBBI VI Daring host.
     base_url: str = "https://kbbi.kemendikdasmen.go.id"
-
-    # Fallback mirror when official host is down/unreachable.
-    fallback_base_url: str = "https://kbbi.web.id"
 
     # Network timeout in seconds.
     timeout_seconds: float = 10.0
