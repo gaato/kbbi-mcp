@@ -8,7 +8,7 @@ class _KBBIKelas(TypedDict):
 
 
 class _KBBIMakna(TypedDict):
-    kelas: list[_KBBIKelas]
+    kelas: list[dict[str, str]]
     submakna: list[str]
     info: str
     contoh: list[str]
@@ -58,7 +58,7 @@ class _KBBIEntri(TypedDict):
 
 class _KBBISerialisasi(TypedDict):
     pranala: str
-    entri: list[_KBBIEntriMaybeUser]
+    entri: list[_KBBIEntri]
     saran_entri: NotRequired[list[str]]
 
 

@@ -9,11 +9,11 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as package_version
 from typing import Any
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from fastmcp import Client, Context, FastMCP
 
 from .settings import get_settings
-from .types import KBBILookupResult, _KBBIEntri, _KBBISerialisasi
+from .types import KBBILookupResult, _KBBIEntri, _KBBIMakna, _KBBISerialisasi
 
 
 def _get_package_version() -> str | None:
@@ -115,11 +115,11 @@ def _clean_headword(raw: str, fallback_query: str) -> tuple[str, str]:
     return nama or fallback_query, nomor
 
 
-def _extract_makna_from_li(li: Any) -> dict[str, Any]:
+def _extract_makna_from_li(li: Tag) -> _KBBIMakna:
     kelas: list[dict[str, str]] = []
     for span in li.select("font[color='red'] span"):
         kode = span.get_text(" ", strip=True)
-        title = (span.get("title") or "").strip()
+        title = str(span.get("title") or "").strip()
         name, _, desc = title.partition(":")
         kelas.append({
             "kode": kode,
@@ -191,15 +191,19 @@ def _parse_serialized_from_html(html: str, url: str, query: str) -> _KBBISeriali
         pelafalan = pelafalan_el.get_text(" ", strip=True) if pelafalan_el else ""
 
         # Collect the first list (<ol>/<ul>) after the header before next <h2>.
-        makna_items: list[dict[str, Any]] = []
+        makna_items: list[_KBBIMakna] = []
         for sibling in h2.next_siblings:
-            sibling_name = getattr(sibling, "name", None)
-            if sibling_name == "h2":
+            if not isinstance(sibling, Tag):
+                continue
+
+            if sibling.name == "h2":
                 break
-            if sibling_name in {"ol", "ul"}:
+
+            if sibling.name in {"ol", "ul"}:
                 lis = sibling.find_all("li")
                 for li in lis:
-                    makna_items.append(_extract_makna_from_li(li))
+                    if isinstance(li, Tag):
+                        makna_items.append(_extract_makna_from_li(li))
                 if lis:
                     break
 
