@@ -1,3 +1,5 @@
+import pytest
+
 import kbbi_mcp.server as server
 
 
@@ -5,12 +7,9 @@ def test_slugify_query_uses_path_encoding():
     assert server._slugify_query("dua kata") == "dua%20kata"
 
 
-def test_kbbi_lookup_empty_query_returns_error():
-    result = server._kbbi_lookup_result("   ")
-    assert result["found"] is False
-    assert result["entries"] == []
-    assert result["suggestions"] == []
-    assert "error" in result
+def test_kbbi_lookup_empty_query_raises():
+    with pytest.raises(server.KBBILookupError, match="must not be empty"):
+        server._kbbi_lookup_result("   ")
 
 
 def test_kbbi_lookup_success(monkeypatch):
@@ -46,7 +45,6 @@ def test_kbbi_lookup_success(monkeypatch):
     assert result["url"] == "https://kbbi.kemendikdasmen.go.id/entri/apel"
     assert len(result["entries"]) == 1
     assert result["suggestions"] == []
-    assert "error" not in result
 
 
 def test_kbbi_lookup_not_found_suggestions(monkeypatch):
@@ -64,21 +62,16 @@ def test_kbbi_lookup_not_found_suggestions(monkeypatch):
     assert result["found"] is False
     assert result["entries"] == []
     assert result["suggestions"] == ["asdf", "asdh"]
-    assert "error" not in result
 
 
-def test_kbbi_lookup_unexpected_error_is_structured(monkeypatch):
+def test_kbbi_lookup_unexpected_error_raises(monkeypatch):
     def boom(_: str):
         raise RuntimeError("network down")
 
     monkeypatch.setattr(server, "_lookup_serialized", boom)
 
-    result = server._kbbi_lookup_result("apel")
-    assert result["found"] is False
-    assert result["entries"] == []
-    assert result["suggestions"] == []
-    assert "error" in result
-    assert "RuntimeError" in result["error"]
+    with pytest.raises(server.KBBILookupError, match="RuntimeError: network down"):
+        server._kbbi_lookup_result("apel")
 
 
 def test_parse_not_found_extracts_suggestions_from_links():

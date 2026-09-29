@@ -20,6 +20,9 @@ class KBBISettings(BaseSettings):
     # Network timeout in seconds.
     timeout_seconds: float = 10.0
 
+    # Log level for the stdio server's stderr logs.
+    log_level: str = "INFO"
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> KBBISettings:

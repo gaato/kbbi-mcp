@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import asyncio
+import base64
+import logging
 import re
 import urllib.parse
 import urllib.request
@@ -10,7 +13,9 @@ from importlib.metadata import version as package_version
 from typing import Any
 
 from bs4 import BeautifulSoup, Tag
-from fastmcp import Client, Context, FastMCP
+from fastmcp import Client, FastMCP
+from fastmcp.exceptions import ResourceError, ToolError
+from mcp_types import Icon, ToolAnnotations
 
 from kbbi_mcp.settings import get_settings
 from kbbi_mcp.types import KBBILookupResult, _Definition, _Entry, _LookupSerialized, _WordClass
@@ -28,6 +33,13 @@ def _get_package_version() -> str | None:
         return None
 
 
+logger = logging.getLogger(__name__)
+
+
+class KBBILookupError(Exception):
+    """Raised when a KBBI lookup cannot be performed (bad input or upstream failure)."""
+
+
 _INSTRUCTIONS = """\
 Query KBBI (Kamus Besar Bahasa Indonesia / KBBI Daring).
 
@@ -38,12 +50,33 @@ Data source policy:
 - Official KBBI VI Daring host by default
 """
 
+_ICON_SVG = """\
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">\
+<rect width="64" height="64" rx="14" fill="#b91c1c"/>\
+<path d="M14 18c6-3 12-3 18 1 6-4 12-4 18-1v29c-6-3-12-3-18 1-6-4-12-4-18-1z" fill="#fff"/>\
+<path d="M32 19v29" stroke="#b91c1c" stroke-width="2"/>\
+</svg>"""
+
+_ICONS = [
+    Icon(
+        src="data:image/svg+xml;base64," + base64.b64encode(_ICON_SVG.encode()).decode(),
+        mime_type="image/svg+xml",
+        sizes=["any"],
+    )
+]
+
+# Dictionary content changes rarely and is identical for every caller.
+_CACHE_TTL_SECONDS = 3600
+
 
 mcp = FastMCP(
     name="KBBI MCP",
     instructions=_INSTRUCTIONS,
     version=_get_package_version(),
     website_url="https://github.com/gaato/kbbi-mcp",
+    icons=_ICONS,
+    cache_ttl=_CACHE_TTL_SECONDS,
+    cache_scope="public",
 )
 
 
@@ -284,26 +317,12 @@ def _lookup_serialized(query: str) -> _LookupSerialized:
 def _kbbi_lookup_result(query: str) -> KBBILookupResult:
     normalized_query = query.strip()
     if not normalized_query:
-        return {
-            "found": False,
-            "query": query,
-            "url": None,
-            "entries": [],
-            "suggestions": [],
-            "error": "query must not be empty",
-        }
+        raise KBBILookupError("query must not be empty")
 
     try:
         serialized = _lookup_serialized(normalized_query)
     except Exception as e:
-        return {
-            "found": False,
-            "query": normalized_query,
-            "url": None,
-            "entries": [],
-            "suggestions": [],
-            "error": f"{type(e).__name__}: {e}",
-        }
+        raise KBBILookupError(f"KBBI lookup failed: {type(e).__name__}: {e}") from e
 
     entries = [_normalize_entry(e) for e in serialized.get("entries", [])]
     suggestions = serialized.get("suggestions", [])
@@ -317,48 +336,63 @@ def _kbbi_lookup_result(query: str) -> KBBILookupResult:
     }
 
 
-@mcp.tool
-async def kbbi_lookup(query: str, ctx: Context) -> KBBILookupResult:
-    """Look up a word or phrase in KBBI and return structured JSON.
+def _logged_lookup(query: str) -> KBBILookupResult:
+    try:
+        result = _kbbi_lookup_result(query)
+    except KBBILookupError as e:
+        logger.warning("lookup failed query=%r: %s", query, e)
+        raise
 
-    Args:
-        query (str): A word or phrase to look up.
-        ctx (Context): FastMCP context for logging and request-scoped metadata.
-
-    Returns:
-        KBBILookupResult: A stable, JSON-serializable object containing lookup results.
-    """
-    await ctx.info(
-        "kbbi_lookup called",
-        extra={"query": query},
-    )
-
-    result = _kbbi_lookup_result(query)
-    result_query = result.get("query", query)
-
-    if "error" in result:
-        await ctx.warning(
-            "kbbi_lookup returned an error",
-            extra={"query": result_query, "error": result.get("error")},
-        )
-        return result
-
-    if result["found"]:
-        await ctx.info(
-            "kbbi_lookup found entries",
-            extra={"query": result_query, "entries": len(result["entries"])},
-        )
-        return result
-
-    await ctx.info(
-        "kbbi_lookup found no entries",
-        extra={"query": result_query, "suggestions": len(result["suggestions"])},
+    logger.info(
+        "lookup query=%r found=%s entries=%d suggestions=%d",
+        result["query"],
+        result["found"],
+        len(result["entries"]),
+        len(result["suggestions"]),
     )
     return result
 
 
-@mcp.resource("kbbi://{query}")
-def kbbi_resource(query: str) -> KBBILookupResult:
+@mcp.tool(
+    title="KBBI Lookup",
+    icons=_ICONS,
+    annotations=ToolAnnotations(
+        read_only_hint=True,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=True,
+    ),
+)
+def kbbi_lookup(query: str) -> KBBILookupResult:
+    """Look up an Indonesian word or phrase in KBBI, the official Indonesian dictionary.
+
+    Returns each matching entry with its headword, pronunciation, word classes,
+    definitions, and usage examples. If nothing matches, `found` is false and
+    `suggestions` may list similar headwords to try next.
+
+    Args:
+        query (str): A word or phrase to look up.
+
+    Returns:
+        KBBILookupResult: A stable, JSON-serializable object containing lookup results.
+
+    Raises:
+        ToolError: If the query is empty or KBBI cannot be reached or parsed.
+    """
+    try:
+        return _logged_lookup(query)
+    except KBBILookupError as e:
+        raise ToolError(str(e)) from e
+
+
+@mcp.resource(
+    "kbbi://{query}",
+    title="KBBI Entry",
+    description="KBBI lookup result for a word or phrase, as JSON (same payload as kbbi_lookup).",
+    mime_type="application/json",
+    icons=_ICONS,
+)
+async def kbbi_resource(query: str) -> KBBILookupResult:
     """Read-only resource for `kbbi://{query}`.
 
     Args:
@@ -366,5 +400,12 @@ def kbbi_resource(query: str) -> KBBILookupResult:
 
     Returns:
         KBBILookupResult: The same payload as `kbbi_lookup`.
+
+    Raises:
+        ResourceError: If KBBI cannot be reached or parsed.
     """
-    return _kbbi_lookup_result(query)
+    # Resource templates call the function inline, so keep the blocking fetch off the loop.
+    try:
+        return await asyncio.to_thread(_logged_lookup, query)
+    except KBBILookupError as e:
+        raise ResourceError(str(e)) from e
