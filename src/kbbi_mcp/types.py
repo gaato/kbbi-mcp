@@ -53,4 +53,3 @@ class KBBILookupResult(TypedDict):
     url: str | None
     entries: list[_Entry]
     suggestions: list[str]
-    error: NotRequired[str]

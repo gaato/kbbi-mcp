@@ -119,7 +119,9 @@ Returns a JSON object:
 - ``url`` (string | null)
 - ``entries`` (list)
 - ``suggestions`` (list)
-- ``error`` (string, optional): present only when the request is invalid (e.g. empty query) or an unexpected error occurs
+
+An empty query or a failed lookup (e.g. KBBI unreachable) is reported as an MCP tool error
+(``isError: true``) with a message, not as a JSON payload.
 
 ``entries`` uses an English-key schema with normalization:
 
@@ -158,7 +160,7 @@ Example tool output:
 Resource: ``kbbi://{query}``
 -----------------------------
 
-This server also exposes the same payload as a read-only MCP resource.
+This server also exposes the same payload as a read-only MCP resource (``application/json``).
 
 - ``kbbi://makan``
 
@@ -175,3 +177,4 @@ Optional environment variables:
 
 - ``KBBI_BASE_URL`` (default: ``https://kbbi.kemendikdasmen.go.id``)
 - ``KBBI_TIMEOUT_SECONDS`` (default: ``10.0``)
+- ``KBBI_LOG_LEVEL`` (default: ``INFO``): level of the server's logs, written to stderr

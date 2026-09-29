@@ -26,6 +26,7 @@ dependencies = [
     "fastmcp>=4.0.10,<5",
     "beautifulsoup4>=4.12,<5",
     "pydantic-settings>=2,<3",
+    "mcp-types>=2.2.0,<3",
 ]
 
 [project.scripts]
