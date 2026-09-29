@@ -26,6 +26,11 @@ jobs:
       - name: Set up Python
         run: uv python install
 
+      - name: Check tag matches package version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: test "$TAG" = "v$(uv version --short)"
+
       - name: Build
         run: uv build
 
@@ -55,3 +60,38 @@ jobs:
             --generate-notes \
             --verify-tag \
             dist/*
+
+  # A separate job so a failed registry publish can be re-run on its own, without
+  # re-uploading the already-published PyPI files.
+  registry:
+    needs: run
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # server.json must match this version, and this version's README on PyPI must
+      # carry the `mcp-name:` marker (both are checked by tests/test_metadata.py).
+      - name: Install mcp-publisher
+        env:
+          MCP_PUBLISHER_VERSION: v1.8.1
+          MCP_PUBLISHER_SHA256: a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc
+        run: |
+          curl -fsSL -o mcp-publisher.tar.gz \
+            "https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz"
+          echo "${MCP_PUBLISHER_SHA256}  mcp-publisher.tar.gz" | sha256sum --check
+          tar xzf mcp-publisher.tar.gz mcp-publisher
+
+      - name: Publish to MCP Registry
+        run: |
+          ./mcp-publisher login github-oidc
+          # The registry reads this version's README from PyPI, which can lag right after upload.
+          for attempt in 1 2 3 4 5; do
+            ./mcp-publisher publish && exit 0
+            echo "Registry publish failed (attempt $attempt); retrying in 30s"
+            sleep 30
+          done
+          exit 1
