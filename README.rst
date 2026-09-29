@@ -19,20 +19,20 @@ kbbi-mcp
    :target: https://github.com/gaato/kbbi-mcp/blob/HEAD/LICENSE
    :alt: License
 
+.. image:: https://img.shields.io/badge/VS_Code-Install_Server-0098FF
+   :target: https://insiders.vscode.dev/redirect/mcp/install?name=kbbi&config=%7B%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22kbbi-mcp%22%5D%7D
+   :alt: Install in VS Code
+
+.. image:: https://img.shields.io/badge/Cursor-Install_Server-000000?logo=cursor
+   :target: https://cursor.com/en/install-mcp?name=kbbi&config=eyJjb21tYW5kIjoidXZ4IGtiYmktbWNwIn0%3D
+   :alt: Install in Cursor
+
 An MCP server that lets AI assistants look up Indonesian words in
 `KBBI <https://kbbi.kemendikdasmen.go.id>`_ (Kamus Besar Bahasa Indonesia), the official Indonesian dictionary.
 It returns structured entries (homographs, pronunciation, root words, word classes, definitions, and examples)
 so the assistant can explain, translate, or quote them for you.
 
 This is an **unofficial** client; see `Disclaimer`_.
-
-.. image:: https://img.shields.io/badge/VS_Code-Install_Server-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white
-   :target: https://insiders.vscode.dev/redirect/mcp/install?name=kbbi&config=%7B%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22kbbi-mcp%22%5D%7D
-   :alt: Install in VS Code
-
-.. image:: https://cursor.com/deeplink/mcp-install-dark.svg
-   :target: https://cursor.com/en/install-mcp?name=kbbi&config=eyJjb21tYW5kIjoidXZ4IGtiYmktbWNwIn0%3D
-   :alt: Install in Cursor
 
 Example prompts
 ---------------
@@ -82,7 +82,7 @@ Gemini CLI
 VS Code
 ~~~~~~~
 
-Click the *Install in VS Code* button above, or run:
+Click the *Install in VS Code* badge at the top, or run:
 
 .. code-block:: bash
 
@@ -91,7 +91,7 @@ Click the *Install in VS Code* button above, or run:
 Cursor
 ~~~~~~
 
-Click the *Install in Cursor* button above, or add the standard config to ``~/.cursor/mcp.json``
+Click the *Install in Cursor* badge at the top, or add the standard config to ``~/.cursor/mcp.json``
 (or ``.cursor/mcp.json`` in a project).
 
 Claude Desktop
