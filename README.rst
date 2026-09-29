@@ -108,110 +108,22 @@ Other clients
 Use the standard config above. Without ``uv``, install the package with ``pip install kbbi-mcp`` and use
 ``kbbi-mcp`` (or ``python -m kbbi_mcp``) as the command.
 
-Tool: ``kbbi_lookup``
----------------------
+Tools
+-----
 
-**Input**
+- ``kbbi_lookup``: Look up an Indonesian word or phrase in KBBI. Returns each headword with its homograph
+  number, pronunciation, root words, and senses (labels such as the word class, the definition, and examples
+  with their meanings). Read-only.
 
-- ``query`` (string): a word or phrase
+  - ``query`` (string, required): a word or phrase, e.g. ``makan`` or ``rumah sakit``
 
-Example tool arguments:
+An empty query or a failed lookup (e.g. KBBI unreachable) is returned as a tool error. The full result
+structure is published as the tool's ``outputSchema`` (``kbbi_mcp.types`` in Python).
 
-.. code-block:: json
+Resources
+---------
 
-   {
-       "query": "makan"
-   }
-
-**Output**
-
-Returns a JSON object:
-
-- ``found`` (bool): whether ``entries`` is non-empty
-- ``query`` (string): the trimmed query
-- ``url`` (string): the KBBI page that was read
-- ``entries`` (list): one item per headword; homographs such as *makan¹* and *makan²* are separate entries
-- ``suggestions`` (list of strings): similar headwords when nothing was found, if the page lists any
-  (usually empty; see `Limitations`_)
-
-Each entry has:
-
-- ``headword`` (string): syllable dots removed (``ma.kan`` → ``makan``)
-- ``homograph`` (int | null): the superscript number, if any
-- ``pronunciation`` (string | null): e.g. ``/gêmas/``
-- ``root_words`` (list of strings): e.g. ``["punya"]`` for *mempunyai*
-- ``senses`` (list), in page order, each with:
-
-  - ``labels``: ``{code, name, description}`` for word classes (``v``, ``n``, …) and usage labels (``ki``, ``Tas``, …)
-  - ``gloss`` (string): the definition text
-  - ``examples``: ``{text, meaning}``; ``--`` or ``~`` in ``text`` stands for the headword, and ``meaning`` (string | null) explains idiomatic examples
-
-Every key is always present (``null`` or an empty list when absent), so the output shape is stable.
-
-An empty query or a failed lookup (e.g. KBBI unreachable) is reported as an MCP tool error
-(``isError: true``) with a message, not as a JSON payload.
-
-Example tool output:
-
-.. code-block:: json
-
-   {
-       "found": true,
-       "query": "gemas",
-       "url": "https://kbbi.kemendikdasmen.go.id/entri/gemas",
-       "entries": [
-           {
-               "headword": "gemas",
-               "homograph": null,
-               "pronunciation": "/gêmas/",
-               "root_words": [],
-               "senses": [
-                   {
-                       "labels": [
-                           {
-                               "code": "a",
-                               "name": "Adjektiva",
-                               "description": "kata yang menjelaskan nomina atau pronomina"
-                           }
-                       ],
-                       "gloss": "sangat jengkel (marah) dalam hati",
-                       "examples": [
-                           {
-                               "text": "saya sangat -- pada anak itu karena selalu mengotori lantai",
-                               "meaning": null
-                           }
-                       ]
-                   },
-                   {
-                       "labels": [
-                           {
-                               "code": "a",
-                               "name": "Adjektiva",
-                               "description": "kata yang menjelaskan nomina atau pronomina"
-                           }
-                       ],
-                       "gloss": "sangat suka (cinta) bercampur jengkel; jengkel-jengkel cinta",
-                       "examples": [
-                           {
-                               "text": "-- aku melihat anak ini",
-                               "meaning": null
-                           }
-                       ]
-                   }
-               ]
-           }
-       ],
-       "suggestions": []
-   }
-
-Resource: ``kbbi://{query}``
------------------------------
-
-This server also exposes the same payload as a read-only MCP resource (``application/json``).
-
-- ``kbbi://makan``
-
-For low-level debugging, a client would read it using ``resources/read`` with ``{"uri": "kbbi://makan"}``.
+- ``kbbi://{query}``: the same result as ``kbbi_lookup``, as JSON (e.g. ``kbbi://makan``).
 
 Configuration
 -------------
@@ -229,7 +141,7 @@ Limitations
 -----------
 
 - Lookups are anonymous. KBBI shows etymology, related entries, and suggestions for missing words only to
-  signed-in users, so they are not returned (``suggestions`` is usually empty).
+  signed-in users, so they are not returned. When nothing is found, try the base word or another spelling.
 - Each lookup fetches ``https://kbbi.kemendikdasmen.go.id/entri/{query}``. KBBI limits anonymous searches,
   so avoid rapid bulk lookups. Results are cached in memory while the server runs.
 - The result depends on KBBI's page markup; if KBBI changes it, parsing may break until this package is updated.

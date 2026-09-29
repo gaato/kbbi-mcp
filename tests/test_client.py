@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 from conftest import _as_mapping
@@ -92,3 +93,21 @@ async def test_tool_errors_are_reported_as_tool_errors(monkeypatch):
     assert "RuntimeError: network down" in result.content[0].text
     assert empty.is_error
     assert "must not be empty" in empty.content[0].text
+
+
+@pytest.mark.anyio
+async def test_readme_lists_tools_parameters_and_resources():
+    readme = (Path(__file__).parent.parent / "README.rst").read_text()
+
+    async with kbbi_mcp.create_client() as client:
+        tools = (await client.list_tools()).tools
+        templates = (await client.list_resource_templates()).resource_templates
+
+    for tool in tools:
+        assert f"``{tool.name}``" in readme
+        schema = tool.input_schema
+        for name in schema["properties"]:
+            kind = "required" if name in schema.get("required", []) else "optional"
+            assert f"``{name}`` ({schema['properties'][name]['type']}, {kind})" in readme
+    for template in templates:
+        assert f"``{template.uri_template}``" in readme
