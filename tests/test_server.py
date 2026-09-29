@@ -99,7 +99,6 @@ def test_gemas_pronunciation_and_schema():
                 ],
             }
         ],
-        "suggestions": [],
     }
 
 
@@ -141,35 +140,6 @@ def test_first_sibling_sense_list_and_invalid_homograph():
     assert entry["headword"] == "test"
     assert entry["homograph"] is None
     assert [s["gloss"] for s in entry["senses"]] == ["first"]
-
-
-def test_not_found_extracts_suggestions_from_links():
-    html = """
-    <html><body>
-      <h4>Entri tidak ditemukan.</h4>
-      <ul>
-        <li><a href="/entri/asdf">asdf</a></li>
-        <li><a href="/entri/asdh">asdh</a></li>
-      </ul>
-    </body></html>
-    """
-    result = server._parse_html(html, URL + "asdfgh", "asdfgh")
-    assert result["entries"] == []
-    assert result["suggestions"] == ["asdf", "asdh"]
-
-
-def test_entries_empty_extracts_suggestions():
-    html = """
-    <html><body>
-      <h2>dummy</h2>
-      <p>no definitions here</p>
-      <a href="/entri/foo">foo</a>
-      <a href="/entri/bar">bar</a>
-    </body></html>
-    """
-    result = server._parse_html(html, URL + "dummy", "dummy")
-    assert result["entries"] == []
-    assert result["suggestions"] == ["foo", "bar"]
 
 
 def test_lookup_trims_query_and_fetches_once(serve_fixture):

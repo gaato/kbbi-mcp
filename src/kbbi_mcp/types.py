@@ -41,4 +41,3 @@ class KBBILookupResult(TypedDict):
     query: str
     url: str
     entries: list[Entry]
-    suggestions: list[str]

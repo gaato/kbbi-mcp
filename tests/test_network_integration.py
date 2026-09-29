@@ -18,13 +18,12 @@ async def test_kbbi_lookup_real_network_smoke(network_enabled):
     payload = _as_mapping(result.structured_content)
 
     # Stable top-level shape.
-    for key in ("found", "query", "url", "entries", "suggestions"):
+    for key in ("found", "query", "url", "entries"):
         assert key in payload
 
     assert payload["query"] == "apel"
     assert isinstance(payload["found"], bool)
     assert isinstance(payload["entries"], list)
-    assert isinstance(payload["suggestions"], list)
 
     # Live-page parsing: "apel" has at least one entry with senses and a gloss.
     assert payload["found"] is True

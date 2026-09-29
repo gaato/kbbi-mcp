@@ -242,39 +242,6 @@ def _first_sense_list(h2: Tag) -> list[Sense]:
     return []
 
 
-def _extract_suggestions(soup: BeautifulSoup, query: str) -> list[str]:
-    """Best-effort extraction of suggestion terms from entry links.
-
-    Args:
-        soup (BeautifulSoup): Parsed HTML document.
-        query (str): Original query string.
-
-    Returns:
-        list[str]: Deduplicated suggestion list.
-    """
-    suggestions: list[str] = []
-    seen: set[str] = set()
-    normalized_query = query.strip().lower()
-
-    for a in soup.find_all("a", href=True):
-        href = str(a.get("href") or "")
-        if "/entri/" not in href:
-            continue
-
-        text = a.get_text(" ", strip=True)
-        if not text:
-            continue
-
-        key = text.lower()
-        if key == normalized_query or key in seen:
-            continue
-
-        seen.add(key)
-        suggestions.append(text)
-
-    return suggestions
-
-
 def _parse_html(html: str, url: str, query: str) -> KBBILookupResult:
     soup = BeautifulSoup(html, "html.parser")
 
@@ -289,7 +256,6 @@ def _parse_html(html: str, url: str, query: str) -> KBBILookupResult:
         "query": query,
         "url": url,
         "entries": entries,
-        "suggestions": [] if entries else _extract_suggestions(soup, query),
     }
 
 
@@ -328,11 +294,10 @@ def _logged_lookup(query: str) -> KBBILookupResult:
         raise
 
     logger.info(
-        "lookup query=%r found=%s entries=%d suggestions=%d",
+        "lookup query=%r found=%s entries=%d",
         result["query"],
         result["found"],
         len(result["entries"]),
-        len(result["suggestions"]),
     )
     return result
 
@@ -345,8 +310,7 @@ def _logged_lookup(query: str) -> KBBILookupResult:
         "`homograph`) with its pronunciation, root words, and ordered senses. Each sense has\n"
         "labels (word class and usage labels), a gloss, and examples; in examples `--` or `~`\n"
         "stands for the headword, and `meaning` explains idiomatic ones. If nothing matches,\n"
-        "`found` is false; `suggestions` lists similar headwords only if KBBI provided any\n"
-        "(usually none for anonymous lookups), so try a base word or another spelling."
+        "`found` is false; try a base word (e.g. `punya` for `mempunyai`) or another spelling."
     ),
     icons=_ICONS,
     annotations=ToolAnnotations(
