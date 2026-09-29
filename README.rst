@@ -16,7 +16,7 @@ kbbi-mcp
    :alt: Python
 
 .. image:: https://img.shields.io/pypi/l/kbbi-mcp
-   :target: https://github.com/gaato/kbbi-mcp/blob/HEAD/LICENSE
+   :target: https://github.com/gaato/kbbi-mcp/blob/HEAD/LICENSE.md
    :alt: License
 
 .. image:: https://img.shields.io/badge/VS_Code-Install_Server-0098FF
@@ -296,4 +296,4 @@ personal, non-commercial lookups. You are responsible for how you use the result
 License
 -------
 
-`BlueOak-1.0.0 <https://github.com/gaato/kbbi-mcp/blob/HEAD/LICENSE>`_.
+`BlueOak-1.0.0 <https://github.com/gaato/kbbi-mcp/blob/HEAD/LICENSE.md>`_.
