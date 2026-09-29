@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import urllib.parse
 import urllib.request
+from collections.abc import Mapping
 from functools import lru_cache
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as package_version
@@ -142,11 +143,11 @@ def _extract_definition_from_li(li: Tag) -> _Definition:
     }
 
 
-def _normalize_entry(entry: dict[str, Any]) -> _Entry:
+def _normalize_entry(entry: Mapping[str, Any]) -> _Entry:
     """Normalize an entry dict so downstream clients get a stable shape.
 
     Args:
-        entry (dict[str, Any]): A partially populated entry payload.
+        entry (Mapping[str, Any]): A partially populated entry payload.
 
     Returns:
         _Entry: Entry payload with all optional fields normalized.
