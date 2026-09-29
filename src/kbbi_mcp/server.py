@@ -345,7 +345,8 @@ def _logged_lookup(query: str) -> KBBILookupResult:
         "`homograph`) with its pronunciation, root words, and ordered senses. Each sense has\n"
         "labels (word class and usage labels), a gloss, and examples; in examples `--` or `~`\n"
         "stands for the headword, and `meaning` explains idiomatic ones. If nothing matches,\n"
-        "`found` is false and `suggestions` may list similar headwords to try next."
+        "`found` is false; `suggestions` lists similar headwords only if KBBI provided any\n"
+        "(usually none for anonymous lookups), so try a base word or another spelling."
     ),
     icons=_ICONS,
     annotations=ToolAnnotations(
