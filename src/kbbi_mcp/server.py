@@ -12,8 +12,8 @@ from typing import Any
 from bs4 import BeautifulSoup, Tag
 from fastmcp import Client, Context, FastMCP
 
-from .settings import get_settings
-from .types import KBBILookupResult, _Definition, _Entry, _LookupSerialized, _WordClass
+from kbbi_mcp.settings import get_settings
+from kbbi_mcp.types import KBBILookupResult, _Definition, _Entry, _LookupSerialized, _WordClass
 
 
 def _get_package_version() -> str | None:
