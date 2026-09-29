@@ -28,25 +28,18 @@ dependencies = [
     "pydantic-settings>=2,<3",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "ruff>=0.14.10",
-    "ty>=0.0.7",
-    "pytest>=8,<9",
-]
-
 [project.scripts]
 kbbi-mcp = "kbbi_mcp.__main__:main"
 
 [build-system]
-requires = ["uv_build>=0.8.2,<0.9.0"]
+requires = ["uv_build>=0.12.20,<0.13.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
-    "ruff>=0.14.10",
-    "ty>=0.0.7",
-    "pytest>=8,<9",
+    "ruff>=0.16.9",
+    "ty>=0.0.84",
+    "pytest>=9,<10",
 ]
 
 [tool.ruff]
@@ -70,16 +63,20 @@ select = [
 
 # We want docstring *style* checks, but we don't require docstrings everywhere.
 ignore = [
-    "D100", # Missing docstring in public module
-    "D101", # Missing docstring in public class
-    "D102", # Missing docstring in public method
-    "D103", # Missing docstring in public function
-    "D104", # Missing docstring in public package
-    "D105", # Missing docstring in magic method
-    "D107", # Missing docstring in __init__
-    "D203", # 1 blank line required before class docstring (conflicts with D211)
-    "D213", # Multi-line docstring summary should start at the second line (conflicts with D212)
+    "undocumented-public-module",
+    "undocumented-public-class",
+    "undocumented-public-method",
+    "undocumented-public-function",
+    "undocumented-public-package",
+    "undocumented-magic-method",
+    "undocumented-public-init",
+    "incorrect-blank-line-before-class", # conflicts with blank-line-before-class (D211)
+    "multi-line-summary-second-line", # conflicts with multi-line-summary-first-line (D212)
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# `main` stays here so the console entrypoint can import the server lazily.
+"src/kbbi_mcp/__init__.py" = ["non-empty-init-module"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
