@@ -1,6 +1,6 @@
 [project]
 name = "kbbi-mcp"
-version = "0.1.0"
+version = "0.2.0"
 description = "A simple MCP server for querying KBBI (Indonesian dictionary)"
 readme = { file = "README.rst", content-type = "text/x-rst" }
 license = "BlueOak-1.0.0"
