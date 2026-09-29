@@ -9,7 +9,7 @@ authors = [
     { name = "Gakuto Furuya", email = "57865205+gaato@users.noreply.github.com" }
 ]
 requires-python = ">=3.13"
-keywords = ["mcp", "kbbi", "dictionary", "indonesian", "fastmcp"]
+keywords = ["mcp", "kbbi", "dictionary", "indonesian"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -23,7 +23,7 @@ classifiers = [
 ]
 urls = { Repository = "https://github.com/gaato/kbbi-mcp", Issues = "https://github.com/gaato/kbbi-mcp/issues" }
 dependencies = [
-    "fastmcp>=4.0.10,<5",
+    "mcp>=2.2.0,<3",
     "beautifulsoup4>=4.12,<5",
     "pydantic-settings>=2,<3",
     "mcp-types>=2.2.0,<3",

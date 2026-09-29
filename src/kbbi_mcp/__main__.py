@@ -19,6 +19,8 @@ def main() -> None:
     package_logger = logging.getLogger("kbbi_mcp")
     package_logger.addHandler(handler)
     package_logger.setLevel(get_settings().log_level.upper())
+    # The MCP SDK also configures a root handler; don't print our records twice.
+    package_logger.propagate = False
     mcp.run()
 
 

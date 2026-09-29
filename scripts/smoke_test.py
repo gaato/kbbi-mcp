@@ -22,16 +22,18 @@ async def _check_mcp_surface() -> None:
     import kbbi_mcp
 
     async with kbbi_mcp.create_client() as client:
-        tools = {t.name: t for t in await client.list_tools()}
+        tools = {t.name: t for t in (await client.list_tools()).tools}
         assert "kbbi_lookup" in tools, "kbbi_lookup tool must be exposed"
         assert tools["kbbi_lookup"].annotations is not None
         assert tools["kbbi_lookup"].annotations.read_only_hint is True
 
-        templates = {t.uri_template for t in await client.list_resource_templates()}
+        templates = {
+            t.uri_template for t in (await client.list_resource_templates()).resource_templates
+        }
         assert "kbbi://{query}" in templates, "kbbi://{query} resource must be exposed"
 
         # An empty query is rejected before any network access.
-        result = await client.call_tool("kbbi_lookup", {"query": ""}, raise_on_error=False)
+        result = await client.call_tool("kbbi_lookup", {"query": ""})
         assert result.is_error, "empty query must be reported as a tool error"
 
 
