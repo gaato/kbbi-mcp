@@ -51,7 +51,7 @@ async def test_create_client_exposes_kbbi_resource_template(monkeypatch):
         templates = await client.list_resource_templates()
 
     # mcp.types.ResourceTemplate has `uriTemplate`.
-    uri_templates = {t.uriTemplate for t in templates}
+    uri_templates = {t.uri_template for t in templates}
     assert "kbbi://{query}" in uri_templates
 
 
