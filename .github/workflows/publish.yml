@@ -61,6 +61,18 @@ jobs:
             --verify-tag \
             dist/*
 
+  # A separate job so a failed registry publish can be re-run on its own, without
+  # re-uploading the already-published PyPI files.
+  registry:
+    needs: run
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
       # server.json must match this version, and this version's README on PyPI must
       # carry the `mcp-name:` marker (both are checked by tests/test_metadata.py).
       - name: Install mcp-publisher
