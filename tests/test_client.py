@@ -8,41 +8,21 @@ import kbbi_mcp.server as server
 
 
 @pytest.mark.anyio
-async def test_create_client_can_call_tool(monkeypatch):
-    def fake_lookup_serialized(query: str):
-        assert query == "apel"
-        return {
-            "source_url": "https://kbbi.kemendikdasmen.go.id/entri/apel",
-            "entries": [
-                {
-                    "headword": "apel",
-                    "sense_number": "",
-                    "root_words": [],
-                    "pronunciation": "",
-                    "nonstandard_forms": [],
-                    "variants": [],
-                    "definitions": [
-                        {
-                            "word_classes": [],
-                            "glosses": ["buah"],
-                            "note": "",
-                            "examples": [],
-                        }
-                    ],
-                }
-            ],
-        }
-
-    monkeypatch.setattr(server, "_lookup_serialized", fake_lookup_serialized)
+async def test_create_client_can_call_tool(serve_fixture):
+    serve_fixture("makan")
 
     async with kbbi_mcp.create_client() as client:
-        result = await client.call_tool("kbbi_lookup", {"query": "apel"})
+        # The SDK client validates structured content against the tool's outputSchema.
+        result = await client.call_tool("kbbi_lookup", {"query": "makan"})
 
     payload = _as_mapping(result.structured_content)
     assert payload["found"] is True
-    assert payload["query"] == "apel"
-    assert payload["url"] == "https://kbbi.kemendikdasmen.go.id/entri/apel"
-    assert len(payload["entries"]) == 1
+    assert payload["query"] == "makan"
+    assert payload["url"] == "https://kbbi.kemendikdasmen.go.id/entri/makan"
+    assert [e["homograph"] for e in payload["entries"]] == [1, 2]
+    assert payload["entries"][0]["senses"][10]["examples"][0]["meaning"] == (
+        "tidak memperoleh angin"
+    )
 
 
 @pytest.mark.anyio
@@ -55,27 +35,19 @@ async def test_create_client_exposes_kbbi_resource_template(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_create_client_can_read_kbbi_resource(monkeypatch):
-    def fake_lookup_serialized(query: str):
-        assert query == "apel"
-        return {
-            "source_url": "https://kbbi.kemendikdasmen.go.id/entri/apel",
-            "entries": [],
-            "suggestions": ["apel-apel"],
-        }
-
-    monkeypatch.setattr(server, "_lookup_serialized", fake_lookup_serialized)
+async def test_create_client_can_read_kbbi_resource(serve_fixture):
+    serve_fixture("mempunyai")
 
     async with kbbi_mcp.create_client() as client:
-        contents = (await client.read_resource("kbbi://apel")).contents
+        contents = (await client.read_resource("kbbi://mempunyai")).contents
 
     assert contents, "resource must return at least one content item"
     text = getattr(contents[0], "text", None)
     assert isinstance(text, str)
 
     payload = json.loads(text)
-    assert payload["query"] == "apel"
-    assert payload["suggestions"] == ["apel-apel"]
+    assert payload["query"] == "mempunyai"
+    assert payload["entries"][0]["root_words"] == ["punya"]
 
 
 @pytest.mark.anyio
@@ -107,10 +79,10 @@ async def test_resource_template_is_json():
 
 @pytest.mark.anyio
 async def test_tool_errors_are_reported_as_tool_errors(monkeypatch):
-    def boom(_: str):
+    def boom(url: str, timeout_seconds: float) -> str:
         raise RuntimeError("network down")
 
-    monkeypatch.setattr(server, "_lookup_serialized", boom)
+    monkeypatch.setattr(server, "_fetch_html", boom)
 
     async with kbbi_mcp.create_client() as client:
         result = await client.call_tool("kbbi_lookup", {"query": "apel"})
