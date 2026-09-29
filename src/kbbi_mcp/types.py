@@ -1,48 +1,37 @@
-from typing import NotRequired, TypedDict
+from typing import TypedDict
 
 
-class _WordClass(TypedDict):
+class Label(TypedDict):
+    """A KBBI label such as a word class (`v`) or a usage/field label (`ki`, `Tas`)."""
+
     code: str
     name: str
     description: str
 
 
-class _Definition(TypedDict):
-    word_classes: list[_WordClass]
-    glosses: list[str]
-    note: str
-    examples: list[str]
+class Example(TypedDict):
+    """A usage example; `--` or `~` stands for the headword."""
+
+    text: str
+    meaning: str | None
 
 
-class _Etymology(TypedDict):
-    language: str
-    classes: list[str]
-    source_word: str
-    pronunciation: str
-    meanings: list[str]
+class Sense(TypedDict):
+    """One numbered meaning of an entry."""
+
+    labels: list[Label]
+    gloss: str
+    examples: list[Example]
 
 
-class _Entry(TypedDict):
+class Entry(TypedDict):
+    """One headword on the page (homographs are separate entries)."""
+
     headword: str
-    sense_number: str
+    homograph: int | None
+    pronunciation: str | None
     root_words: list[str]
-    pronunciation: str
-    nonstandard_forms: list[str]
-    variants: list[str]
-    definitions: list[_Definition]
-
-    # Optional related fields (normalized to stable defaults).
-    etymology: _Etymology | None
-    derived_words: list[str]
-    compound_words: list[str]
-    proverbs: list[str]
-    idioms: list[str]
-
-
-class _LookupSerialized(TypedDict):
-    source_url: str
-    entries: list[_Entry]
-    suggestions: NotRequired[list[str]]
+    senses: list[Sense]
 
 
 class KBBILookupResult(TypedDict):
@@ -50,6 +39,6 @@ class KBBILookupResult(TypedDict):
 
     found: bool
     query: str
-    url: str | None
-    entries: list[_Entry]
+    url: str
+    entries: list[Entry]
     suggestions: list[str]

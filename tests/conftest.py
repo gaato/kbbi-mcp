@@ -1,4 +1,6 @@
 import os
+from collections.abc import Callable, Iterator
+from pathlib import Path
 from typing import Any, Protocol, cast
 
 import pytest
@@ -57,3 +59,51 @@ def network_enabled() -> None:
     )
     if not enabled:
         pytest.skip("Network tests are disabled (set KBBI_MCP_RUN_NETWORK_TESTS=1 to enable).")
+
+
+FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def fixture_html(name: str) -> str:
+    """Return a saved KBBI page from `tests/fixtures` (fetched 2026-09-29).
+
+    Args:
+        name (str): The fixture file stem, e.g. `makan`.
+
+    Returns:
+        str: The page HTML.
+    """
+    return (FIXTURES / f"{name}.html").read_text(encoding="utf-8")
+
+
+@pytest.fixture(autouse=True)
+def _clear_lookup_cache() -> Iterator[None]:
+    """Keep the lookup cache from leaking results between tests."""
+    import kbbi_mcp.server as server
+
+    server._cached_lookup.cache_clear()
+    yield
+    server._cached_lookup.cache_clear()
+
+
+@pytest.fixture
+def serve_fixture(monkeypatch: pytest.MonkeyPatch) -> Callable[[str], list[str]]:
+    """Make `_fetch_html` return a fixture page instead of hitting KBBI.
+
+    Returns:
+        Callable[[str], list[str]]: Call it with a fixture name; it returns the list of
+        URLs that were "fetched".
+    """
+    import kbbi_mcp.server as server
+
+    def install(name: str) -> list[str]:
+        fetched: list[str] = []
+
+        def fake_fetch(url: str, timeout_seconds: float) -> str:
+            fetched.append(url)
+            return fixture_html(name)
+
+        monkeypatch.setattr(server, "_fetch_html", fake_fetch)
+        return fetched
+
+    return install

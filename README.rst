@@ -118,21 +118,28 @@ Example tool arguments:
 
 Returns a JSON object:
 
-- ``found`` (bool)
-- ``query`` (string)
-- ``url`` (string | null)
-- ``entries`` (list)
-- ``suggestions`` (list)
+- ``found`` (bool): whether ``entries`` is non-empty
+- ``query`` (string): the trimmed query
+- ``url`` (string): the KBBI page that was read
+- ``entries`` (list): one item per headword; homographs such as *makan¹* and *makan²* are separate entries
+- ``suggestions`` (list of strings): similar headwords, only when nothing was found
+
+Each entry has:
+
+- ``headword`` (string): syllable dots removed (``ma.kan`` → ``makan``)
+- ``homograph`` (int | null): the superscript number, if any
+- ``pronunciation`` (string | null): e.g. ``/gêmas/``
+- ``root_words`` (list of strings): e.g. ``["punya"]`` for *mempunyai*
+- ``senses`` (list), in page order, each with:
+
+  - ``labels``: ``{code, name, description}`` for word classes (``v``, ``n``, …) and usage labels (``ki``, ``Tas``, …)
+  - ``gloss`` (string): the definition text
+  - ``examples``: ``{text, meaning}``; ``--`` or ``~`` in ``text`` stands for the headword, and ``meaning`` (string | null) explains idiomatic examples
+
+Every key is always present (``null`` or an empty list when absent), so the output shape is stable.
 
 An empty query or a failed lookup (e.g. KBBI unreachable) is reported as an MCP tool error
 (``isError: true``) with a message, not as a JSON payload.
-
-``entries`` uses an English-key schema with normalization:
-
-- ``etymology`` is always present (as an object or ``null``)
-- related-word lists are always present (as arrays, possibly empty)
-
-This keeps tool output predictable across source variations.
 
 Example tool output:
 
@@ -140,22 +147,48 @@ Example tool output:
 
    {
        "found": true,
-       "query": "makan",
-       "url": "https://kbbi.kemendikdasmen.go.id/entri/makan",
+       "query": "gemas",
+       "url": "https://kbbi.kemendikdasmen.go.id/entri/gemas",
        "entries": [
            {
-               "headword": "makan",
-               "sense_number": "",
+               "headword": "gemas",
+               "homograph": null,
+               "pronunciation": "/gêmas/",
                "root_words": [],
-               "pronunciation": "",
-               "nonstandard_forms": [],
-               "variants": [],
-               "definitions": [],
-               "etymology": null,
-               "derived_words": [],
-               "compound_words": [],
-               "proverbs": [],
-               "idioms": []
+               "senses": [
+                   {
+                       "labels": [
+                           {
+                               "code": "a",
+                               "name": "Adjektiva",
+                               "description": "kata yang menjelaskan nomina atau pronomina"
+                           }
+                       ],
+                       "gloss": "sangat jengkel (marah) dalam hati",
+                       "examples": [
+                           {
+                               "text": "saya sangat -- pada anak itu karena selalu mengotori lantai",
+                               "meaning": null
+                           }
+                       ]
+                   },
+                   {
+                       "labels": [
+                           {
+                               "code": "a",
+                               "name": "Adjektiva",
+                               "description": "kata yang menjelaskan nomina atau pronomina"
+                           }
+                       ],
+                       "gloss": "sangat suka (cinta) bercampur jengkel; jengkel-jengkel cinta",
+                       "examples": [
+                           {
+                               "text": "-- aku melihat anak ini",
+                               "meaning": null
+                           }
+                       ]
+                   }
+               ]
            }
        ],
        "suggestions": []

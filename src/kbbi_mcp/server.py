@@ -2,16 +2,14 @@ from __future__ import annotations
 
 import base64
 import logging
-import re
 import urllib.parse
 import urllib.request
-from collections.abc import Mapping
 from functools import lru_cache
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as package_version
-from typing import Annotated, Any, get_args
+from typing import Annotated, get_args
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, Comment, NavigableString, PageElement, Tag
 from mcp.client import Client
 from mcp.server.caching import CacheableMethod, CacheHint
 from mcp.server.mcpserver import MCPServer
@@ -20,7 +18,7 @@ from mcp_types import Icon, ToolAnnotations
 from pydantic import Field
 
 from kbbi_mcp.settings import get_settings
-from kbbi_mcp.types import KBBILookupResult, _Definition, _Entry, _LookupSerialized, _WordClass
+from kbbi_mcp.types import Entry, Example, KBBILookupResult, Label, Sense
 
 
 def _get_package_version() -> str | None:
@@ -116,7 +114,7 @@ def _fetch_html(url: str, timeout_seconds: float) -> str:
     req = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "kbbi-mcp/0 (https://github.com/gaato/kbbi-mcp)",
+            "User-Agent": f"kbbi-mcp/{_get_package_version() or '0'} (https://github.com/gaato/kbbi-mcp)",
             "Accept": "text/html,application/xhtml+xml",
         },
     )
@@ -124,81 +122,124 @@ def _fetch_html(url: str, timeout_seconds: float) -> str:
         return res.read().decode("utf-8", errors="ignore")
 
 
-def _clean_headword(raw: str, fallback_query: str) -> tuple[str, str]:
-    """Return (headword, sense_number) parsed from an <h2> text.
-
-    The page often renders forms like `a.pel1` (with <sup>1</sup>) or
-    `a.pel /apêl/`.
-    """
-    text = " ".join(raw.split()).strip()
-    if not text:
-        return fallback_query, ""
-
-    match = re.search(r"^(.*?)(\d+)$", text)
-    if match:
-        headword = match.group(1).strip() or fallback_query
-        sense_number = match.group(2)
-    else:
-        headword = text
-        sense_number = ""
-
-    # Remove syllable markers like a.pel -> apel for a cleaner canonical name.
-    headword = headword.replace(".", "").strip()
-    return headword or fallback_query, sense_number
+def _normalize(text: str) -> str:
+    return " ".join(text.split())
 
 
-def _extract_definition_from_li(li: Tag) -> _Definition:
-    word_classes: list[_WordClass] = []
-    for span in li.select("font[color='red'] span"):
-        code = span.get_text(" ", strip=True)
-        title = str(span.get("title") or "").strip()
-        name, _, description = title.partition(":")
-        word_classes.append({
-            "code": code,
-            "name": (name or code).strip(),
-            "description": description.strip(),
-        })
-
-    examples = [ex.get_text(" ", strip=True) for ex in li.select("font[color='grey'] i")]
-    examples = [c for c in examples if c]
-
-    # Build definition text without class/example decorations.
-    li_copy = BeautifulSoup(str(li), "html.parser")
-    for noisy in li_copy.select("font[color='red'], font[color='grey']"):
-        noisy.decompose()
-    gloss_text = li_copy.get_text(" ", strip=True)
-
-    return {
-        "word_classes": word_classes,
-        "glosses": [gloss_text] if gloss_text else [],
-        "note": "",
-        "examples": examples,
-    }
+def _is_excluded(tag: Tag, excluded: frozenset[str]) -> bool:
+    if tag.name in excluded:
+        return True
+    if tag.name == "span" and any(f"span.{c}" in excluded for c in tag.get_attribute_list("class")):
+        return True
+    return tag.name == "font" and str(tag.get("color") or "").lower() in excluded
 
 
-def _normalize_entry(entry: Mapping[str, Any]) -> _Entry:
-    """Normalize an entry dict so downstream clients get a stable shape.
+def _text_except(node: PageElement, excluded: frozenset[str]) -> str:
+    """Concatenate the text under `node`, skipping excluded elements.
+
+    `excluded` holds tag names, `span.<class>` selectors, and `<font>` colors.
 
     Args:
-        entry (Mapping[str, Any]): A partially populated entry payload.
+        node (PageElement): The element (or string) to extract text from.
+        excluded (frozenset[str]): Elements to skip, as described above.
 
     Returns:
-        _Entry: Entry payload with all optional fields normalized.
+        str: The raw (unnormalized) text.
     """
+    if isinstance(node, Comment):
+        return ""
+    if isinstance(node, NavigableString):
+        return str(node)
+    if not isinstance(node, Tag) or _is_excluded(node, excluded):
+        return ""
+    return "".join(_text_except(child, excluded) for child in node.children)
+
+
+_HEADWORD_DECORATIONS = frozenset({"span.rootword", "span.syllable", "sup"})
+_SENSE_DECORATIONS = frozenset({"red", "grey", "brown"})
+
+
+def _parse_entry(h2: Tag, senses: list[Sense]) -> Entry:
+    # Root-word links carry their own homograph <sup> (`lari<sup>1</sup>`); skip those.
+    sup = next(
+        (t for t in h2.select("sup") if t.find_parent("span", class_="rootword") is None), None
+    )
+    homograph: int | None = None
+    if sup is not None:
+        try:
+            homograph = int(_normalize(sup.get_text()))
+        except ValueError:
+            homograph = None
+
+    syllable = h2.select_one("span.syllable")
     return {
-        "headword": entry.get("headword", ""),
-        "sense_number": entry.get("sense_number", ""),
-        "root_words": entry.get("root_words", []),
-        "pronunciation": entry.get("pronunciation", ""),
-        "nonstandard_forms": entry.get("nonstandard_forms", []),
-        "variants": entry.get("variants", []),
-        "definitions": entry.get("definitions", []),
-        "etymology": entry.get("etymology"),
-        "derived_words": entry.get("derived_words", []),
-        "compound_words": entry.get("compound_words", []),
-        "proverbs": entry.get("proverbs", []),
-        "idioms": entry.get("idioms", []),
+        # Syllable dots are dropped: `ma.kan` -> `makan`.
+        "headword": _normalize(_text_except(h2, _HEADWORD_DECORATIONS)).replace(".", ""),
+        "homograph": homograph,
+        "pronunciation": _normalize(syllable.get_text()) if syllable is not None else None,
+        "root_words": [
+            _normalize(_text_except(a, frozenset({"sup"}))) for a in h2.select("span.rootword a")
+        ],
+        "senses": senses,
     }
+
+
+def _collect_examples(node: Tag, examples: list[Example]) -> None:
+    if node.name == "font":
+        color = str(node.get("color") or "").lower()
+        if color == "grey":
+            for i in node.select("i"):
+                text = _normalize(i.get_text())
+                if text not in {"", ";", ","}:
+                    examples.append({"text": text, "meaning": None})
+            return
+        if color == "brown":
+            # A brown <font> explains the example right before it.
+            meaning = _normalize(node.get_text())
+            if meaning and examples:
+                examples[-1]["meaning"] = meaning
+            return
+
+    for child in node.children:
+        if isinstance(child, Tag):
+            _collect_examples(child, examples)
+
+
+def _parse_sense(li: Tag) -> Sense:
+    labels: list[Label] = []
+    for span in li.select("font[color=red] span[title]"):
+        code = _normalize(span.get_text())
+        name, _, description = str(span.get("title") or "").partition(":")
+        labels.append({
+            "code": code,
+            "name": _normalize(name) or code,
+            "description": _normalize(description),
+        })
+
+    examples: list[Example] = []
+    _collect_examples(li, examples)
+
+    gloss = _normalize(_text_except(li, _SENSE_DECORATIONS)).rstrip(":").strip()
+    return {"labels": labels, "gloss": gloss, "examples": examples}
+
+
+def _first_sense_list(h2: Tag) -> list[Sense]:
+    """Return the senses of the first non-empty <ol>/<ul> sibling before the next <h2>.
+
+    Args:
+        h2 (Tag): The entry heading.
+
+    Returns:
+        list[Sense]: The parsed senses, or an empty list if none follow the heading.
+    """
+    for sibling in h2.find_next_siblings():
+        if sibling.name == "h2":
+            break
+        if sibling.name in {"ol", "ul"}:
+            senses = [_parse_sense(li) for li in sibling.find_all("li", recursive=False)]
+            if senses:
+                return senses
+    return []
 
 
 def _extract_suggestions(soup: BeautifulSoup, query: str) -> list[str]:
@@ -234,84 +275,38 @@ def _extract_suggestions(soup: BeautifulSoup, query: str) -> list[str]:
     return suggestions
 
 
-def _parse_serialized_from_html(html: str, url: str, query: str) -> _LookupSerialized:
+def _parse_html(html: str, url: str, query: str) -> KBBILookupResult:
     soup = BeautifulSoup(html, "html.parser")
 
-    page_text = soup.get_text(" ", strip=True).lower()
-    if "entri tidak ditemukan" in page_text:
-        return {
-            "source_url": url,
-            "entries": [],
-            "suggestions": _extract_suggestions(soup, query),
-        }
-
-    entries: list[_Entry] = []
-    for h2 in soup.find_all("h2"):
-        title_text = h2.get_text(" ", strip=True)
-        if not title_text:
-            continue
-
-        headword, sense_number = _clean_headword(title_text, query)
-        pronunciation_el = h2.select_one("span.syllable")
-        pronunciation = pronunciation_el.get_text(" ", strip=True) if pronunciation_el else ""
-
-        # Collect the first list (<ol>/<ul>) after the header before next <h2>.
-        definitions: list[_Definition] = []
-        for sibling in h2.next_siblings:
-            if not isinstance(sibling, Tag):
-                continue
-
-            if sibling.name == "h2":
-                break
-
-            if sibling.name in {"ol", "ul"}:
-                lis = sibling.find_all("li")
-                for li in lis:
-                    if isinstance(li, Tag):
-                        definitions.append(_extract_definition_from_li(li))
-                if lis:
-                    break
-
-        if not definitions:
-            continue
-
-        entries.append({
-            "headword": headword,
-            "sense_number": sense_number,
-            "root_words": [],
-            "pronunciation": pronunciation,
-            "nonstandard_forms": [],
-            "variants": [],
-            "definitions": definitions,
-            "etymology": None,
-            "derived_words": [],
-            "compound_words": [],
-            "proverbs": [],
-            "idioms": [],
-        })
+    entries: list[Entry] = []
+    if "entri tidak ditemukan" not in soup.get_text(" ", strip=True).lower():
+        for h2 in soup.find_all("h2"):
+            if senses := _first_sense_list(h2):
+                entries.append(_parse_entry(h2, senses))
 
     return {
-        "source_url": url,
+        "found": bool(entries),
+        "query": query,
+        "url": url,
         "entries": entries,
         "suggestions": [] if entries else _extract_suggestions(soup, query),
     }
 
 
 @lru_cache(maxsize=256)
-def _lookup_serialized(query: str) -> _LookupSerialized:
-    """Look up a query in KBBI and return a normalized serialized dictionary.
+def _cached_lookup(query: str) -> KBBILookupResult:
+    """Fetch and parse the KBBI page for an already-normalized query.
 
     Args:
-        query (str): A word or phrase to look up.
+        query (str): A non-empty, trimmed word or phrase.
 
     Returns:
-        _LookupSerialized: Source URL, normalized entries, and suggestions.
+        KBBILookupResult: The parsed lookup result.
     """
     settings = get_settings()
-    official_url = _build_entri_url(settings.base_url, query)
-
-    html = _fetch_html(official_url, timeout_seconds=settings.timeout_seconds)
-    return _parse_serialized_from_html(html, official_url, query)
+    url = _build_entri_url(settings.base_url, query)
+    html = _fetch_html(url, timeout_seconds=settings.timeout_seconds)
+    return _parse_html(html, url, query)
 
 
 def _kbbi_lookup_result(query: str) -> KBBILookupResult:
@@ -320,20 +315,9 @@ def _kbbi_lookup_result(query: str) -> KBBILookupResult:
         raise KBBILookupError("query must not be empty")
 
     try:
-        serialized = _lookup_serialized(normalized_query)
+        return _cached_lookup(normalized_query)
     except Exception as e:
         raise KBBILookupError(f"KBBI lookup failed: {type(e).__name__}: {e}") from e
-
-    entries = [_normalize_entry(e) for e in serialized.get("entries", [])]
-    suggestions = serialized.get("suggestions", [])
-
-    return {
-        "found": len(entries) > 0,
-        "query": normalized_query,
-        "url": serialized.get("source_url"),
-        "entries": entries,
-        "suggestions": suggestions,
-    }
 
 
 def _logged_lookup(query: str) -> KBBILookupResult:
@@ -357,9 +341,11 @@ def _logged_lookup(query: str) -> KBBILookupResult:
     title="KBBI Lookup",
     description=(
         "Look up an Indonesian word or phrase in KBBI, the official Indonesian dictionary.\n\n"
-        "Returns each matching entry with its headword, pronunciation, word classes,\n"
-        "definitions, and usage examples. If nothing matches, `found` is false and\n"
-        "`suggestions` may list similar headwords to try next."
+        "Returns one entry per headword (homographs are separate entries, numbered in\n"
+        "`homograph`) with its pronunciation, root words, and ordered senses. Each sense has\n"
+        "labels (word class and usage labels), a gloss, and examples; in examples `--` or `~`\n"
+        "stands for the headword, and `meaning` explains idiomatic ones. If nothing matches,\n"
+        "`found` is false and `suggestions` may list similar headwords to try next."
     ),
     icons=_ICONS,
     annotations=ToolAnnotations(
