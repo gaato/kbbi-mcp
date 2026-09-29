@@ -13,9 +13,9 @@ async def test_kbbi_lookup_real_network_smoke(network_enabled):
     returns a well-shaped payload without raising errors.
     """
     async with kbbi_mcp.create_client() as client:
-        result = await client.call_tool("kbbi_lookup", {"query": "apel"}, timeout=15.0)
+        result = await client.call_tool("kbbi_lookup", {"query": "apel"}, read_timeout_seconds=15.0)
 
-    payload = _as_mapping(result.data)
+    payload = _as_mapping(result.structured_content)
 
     # Stable top-level shape.
     for key in ("found", "query", "url", "entries", "suggestions"):

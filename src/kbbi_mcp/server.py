@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import base64
 import logging
 import re
@@ -10,12 +9,15 @@ from collections.abc import Mapping
 from functools import lru_cache
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as package_version
-from typing import Any
+from typing import Annotated, Any, get_args
 
 from bs4 import BeautifulSoup, Tag
-from fastmcp import Client, FastMCP
-from fastmcp.exceptions import ResourceError, ToolError
+from mcp.client import Client
+from mcp.server.caching import CacheableMethod, CacheHint
+from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ResourceError, ToolError
 from mcp_types import Icon, ToolAnnotations
+from pydantic import Field
 
 from kbbi_mcp.settings import get_settings
 from kbbi_mcp.types import KBBILookupResult, _Definition, _Entry, _LookupSerialized, _WordClass
@@ -66,40 +68,38 @@ _ICONS = [
 ]
 
 # Dictionary content changes rarely and is identical for every caller.
-_CACHE_TTL_SECONDS = 3600
+_CACHE_HINT = CacheHint(ttl_ms=3600 * 1000, scope="public")
 
 
-mcp = FastMCP(
+mcp = MCPServer(
     name="KBBI MCP",
     instructions=_INSTRUCTIONS,
-    version=_get_package_version(),
+    version=_get_package_version() or "",
     website_url="https://github.com/gaato/kbbi-mcp",
     icons=_ICONS,
-    cache_ttl=_CACHE_TTL_SECONDS,
-    cache_scope="public",
+    cache_hints=dict.fromkeys(get_args(CacheableMethod), _CACHE_HINT),
 )
 
 
-def create_mcp() -> FastMCP:
-    """Return the FastMCP server instance.
+def create_mcp() -> MCPServer:
+    """Return the MCP server instance.
 
-    This makes it easy to embed the server in-process (e.g. for testing or to
-    pass it directly to libraries like Pydantic AI's `FastMCPToolset`).
+    This makes it easy to embed the server in-process (e.g. for testing).
 
     Returns:
-        FastMCP: The configured server instance.
+        MCPServer: The configured server instance.
     """
     return mcp
 
 
-def create_client() -> Client[Any]:
-    """Create an in-memory FastMCP client connected to this server.
+def create_client() -> Client:
+    """Create an in-memory MCP client connected to this server.
 
     This avoids spawning a subprocess or using a network transport, which is
     ideal for deterministic unit tests and Python integrations.
 
     Returns:
-        Client[Any]: A FastMCP client using in-memory transport.
+        Client: An MCP client using in-memory transport.
     """
     return Client(create_mcp())
 
@@ -355,6 +355,12 @@ def _logged_lookup(query: str) -> KBBILookupResult:
 
 @mcp.tool(
     title="KBBI Lookup",
+    description=(
+        "Look up an Indonesian word or phrase in KBBI, the official Indonesian dictionary.\n\n"
+        "Returns each matching entry with its headword, pronunciation, word classes,\n"
+        "definitions, and usage examples. If nothing matches, `found` is false and\n"
+        "`suggestions` may list similar headwords to try next."
+    ),
     icons=_ICONS,
     annotations=ToolAnnotations(
         read_only_hint=True,
@@ -363,12 +369,10 @@ def _logged_lookup(query: str) -> KBBILookupResult:
         open_world_hint=True,
     ),
 )
-def kbbi_lookup(query: str) -> KBBILookupResult:
-    """Look up an Indonesian word or phrase in KBBI, the official Indonesian dictionary.
-
-    Returns each matching entry with its headword, pronunciation, word classes,
-    definitions, and usage examples. If nothing matches, `found` is false and
-    `suggestions` may list similar headwords to try next.
+def kbbi_lookup(
+    query: Annotated[str, Field(description="A word or phrase to look up.")],
+) -> KBBILookupResult:
+    """Look up a word or phrase in KBBI (the tool description is set on the decorator).
 
     Args:
         query (str): A word or phrase to look up.
@@ -392,7 +396,7 @@ def kbbi_lookup(query: str) -> KBBILookupResult:
     mime_type="application/json",
     icons=_ICONS,
 )
-async def kbbi_resource(query: str) -> KBBILookupResult:
+def kbbi_resource(query: str) -> KBBILookupResult:
     """Read-only resource for `kbbi://{query}`.
 
     Args:
@@ -404,8 +408,7 @@ async def kbbi_resource(query: str) -> KBBILookupResult:
     Raises:
         ResourceError: If KBBI cannot be reached or parsed.
     """
-    # Resource templates call the function inline, so keep the blocking fetch off the loop.
     try:
-        return await asyncio.to_thread(_logged_lookup, query)
+        return _logged_lookup(query)
     except KBBILookupError as e:
         raise ResourceError(str(e)) from e

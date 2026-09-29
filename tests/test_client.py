@@ -38,7 +38,7 @@ async def test_create_client_can_call_tool(monkeypatch):
     async with kbbi_mcp.create_client() as client:
         result = await client.call_tool("kbbi_lookup", {"query": "apel"})
 
-    payload = _as_mapping(result.data)
+    payload = _as_mapping(result.structured_content)
     assert payload["found"] is True
     assert payload["query"] == "apel"
     assert payload["url"] == "https://kbbi.kemendikdasmen.go.id/entri/apel"
@@ -48,7 +48,7 @@ async def test_create_client_can_call_tool(monkeypatch):
 @pytest.mark.anyio
 async def test_create_client_exposes_kbbi_resource_template(monkeypatch):
     async with kbbi_mcp.create_client() as client:
-        templates = await client.list_resource_templates()
+        templates = (await client.list_resource_templates()).resource_templates
 
     uri_templates = {t.uri_template for t in templates}
     assert "kbbi://{query}" in uri_templates
@@ -67,7 +67,7 @@ async def test_create_client_can_read_kbbi_resource(monkeypatch):
     monkeypatch.setattr(server, "_lookup_serialized", fake_lookup_serialized)
 
     async with kbbi_mcp.create_client() as client:
-        contents = await client.read_resource("kbbi://apel")
+        contents = (await client.read_resource("kbbi://apel")).contents
 
     assert contents, "resource must return at least one content item"
     text = getattr(contents[0], "text", None)
@@ -81,7 +81,7 @@ async def test_create_client_can_read_kbbi_resource(monkeypatch):
 @pytest.mark.anyio
 async def test_tool_metadata_follows_mcp_best_practices():
     async with kbbi_mcp.create_client() as client:
-        tools = {t.name: t for t in await client.list_tools()}
+        tools = {t.name: t for t in (await client.list_tools()).tools}
 
     tool = tools["kbbi_lookup"]
     assert tool.title == "KBBI Lookup"
@@ -96,7 +96,9 @@ async def test_tool_metadata_follows_mcp_best_practices():
 @pytest.mark.anyio
 async def test_resource_template_is_json():
     async with kbbi_mcp.create_client() as client:
-        templates = {t.uri_template: t for t in await client.list_resource_templates()}
+        templates = {
+            t.uri_template: t for t in (await client.list_resource_templates()).resource_templates
+        }
 
     template = templates["kbbi://{query}"]
     assert template.mime_type == "application/json"
@@ -111,8 +113,8 @@ async def test_tool_errors_are_reported_as_tool_errors(monkeypatch):
     monkeypatch.setattr(server, "_lookup_serialized", boom)
 
     async with kbbi_mcp.create_client() as client:
-        result = await client.call_tool("kbbi_lookup", {"query": "apel"}, raise_on_error=False)
-        empty = await client.call_tool("kbbi_lookup", {"query": "  "}, raise_on_error=False)
+        result = await client.call_tool("kbbi_lookup", {"query": "apel"})
+        empty = await client.call_tool("kbbi_lookup", {"query": "  "})
 
     assert result.is_error
     assert "RuntimeError: network down" in result.content[0].text

@@ -79,21 +79,25 @@ Local development (run from this repo)
 
 You'll need ``uv`` installed: https://docs.astral.sh/uv/getting-started/installation/
 
-This repo includes a ``fastmcp.json`` file that defines how to run the server (source + uv environment + stdio transport).
-
-To run the server directly from this checkout:
+To run the server over stdio directly from this checkout:
 
 .. code-block:: bash
 
-   fastmcp run
+   uv run kbbi-mcp
 
-To generate an ``mcpServers`` entry you can paste into your MCP client config:
+To point an MCP client at this checkout, use an ``mcpServers`` entry like this
+(replace the path with the absolute path of your clone):
 
-.. code-block:: bash
+.. code-block:: json
 
-   fastmcp install mcp-json fastmcp.json
-
-Note: the generated configuration uses absolute paths so it works regardless of the client's working directory.
+   {
+       "mcpServers": {
+           "kbbi-dev": {
+               "command": "uv",
+               "args": ["--directory", "/path/to/kbbi-mcp", "run", "kbbi-mcp"]
+           }
+       }
+   }
 
 Tool: ``kbbi_lookup``
 ---------------------

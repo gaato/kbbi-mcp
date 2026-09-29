@@ -29,7 +29,6 @@ If you introduce or update dependencies, keep `pyproject.toml` and the uv lockfi
 - Package source: `src/kbbi_mcp/`
   - MCP server entrypoint: `src/kbbi_mcp/server.py`
 - Tests: `tests/`
-- Declarative server config: `fastmcp.json`
 
 ## Coding conventions
 

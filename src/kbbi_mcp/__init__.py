@@ -3,7 +3,7 @@
 This package can be used in two ways:
 
 1) As an MCP server (stdio) via the `kbbi-mcp` console script or `python -m kbbi_mcp`.
-2) As a Python library where you import the FastMCP server/client objects and embed
+2) As a Python library where you import the MCP server/client objects and embed
    them in-process (useful for testing or toolset integrations).
 
 To keep imports "polite", we avoid importing `kbbi_mcp.server` eagerly.

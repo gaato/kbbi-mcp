@@ -38,7 +38,6 @@ def _as_mapping(value: Any) -> dict[str, Any]:
         "url": getattr(value, "url", None),
         "entries": getattr(value, "entries", None),
         "suggestions": getattr(value, "suggestions", None),
-        "error": getattr(value, "error", None),
     }
 
 
