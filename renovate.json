@@ -2,5 +2,36 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "lockFileMaintenance": {
+    "description": "Vulnerability PRs only fix direct dependencies; a daily lock file refresh lands transitive fixes within a day.",
+    "enabled": true,
+    "schedule": [
+      "before 6am"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Merge lock file maintenance once CI passes; it leaves declared ranges alone.",
+      "matchUpdateTypes": [
+        "lockFileMaintenance"
+      ],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": false
+    },
+    {
+      "description": "Merge non-major updates once CI passes; majors stay manual.",
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest",
+        "pin",
+        "pinDigest"
+      ],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": false
+    }
   ]
 }
